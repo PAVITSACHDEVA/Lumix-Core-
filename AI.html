@@ -1396,7 +1396,7 @@
             } else if (context === 'coding') {
                 suggestions = ["Can you explain this code?", "How can I optimize this?", "Add comments to the code."];
             } else if (reply.length > 300) {
-                 suggestions = ["Explain this like I'm five.", "Give me 3 key takeaways.", "Translate this to Spanish."];
+                 suggestions = ["Explain this like I'm five.(from our previous conversation)", "Give me 3 key takeaways.(from our previous conversation)", "Translate this to Spanish.(from our previous conversation)"];
             }
 
             suggestions.forEach(text => {
