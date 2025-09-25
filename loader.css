@@ -1,0 +1,108 @@
+/* --- Replit-Style Loading Screen --- */
+
+/* Full-screen loader container */
+.loader-wrapper {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+    transition: opacity 0.75s ease, visibility 0.75s ease;
+    visibility: visible;
+    opacity: 1;
+}
+
+/* Hide loader when JavaScript adds this class */
+.loader-wrapper.hidden {
+    opacity: 0;
+    visibility: hidden;
+}
+
+/* Loader container for animation */
+.loader-container {
+    position: relative;
+    width: 120px;
+    height: 120px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+/* Outer spinning circle */
+.loader-circle {
+    width: 100px;
+    height: 100px;
+    border: 4px solid transparent;
+    border-radius: 50%;
+    animation: spin 1.5s linear infinite;
+}
+
+/* Small pulsing dots */
+.dot {
+    position: absolute;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    animation: pulse 1.5s ease-in-out infinite;
+}
+
+/* Dot positions and delays */
+.dot:nth-child(2) { transform: rotate(0deg) translateY(-40px); animation-delay: -1.25s; }
+.dot:nth-child(3) { transform: rotate(120deg) translateY(-40px); animation-delay: -1.0s; }
+.dot:nth-child(4) { transform: rotate(240deg) translateY(-40px); animation-delay: -0.75s; }
+
+/* Animations */
+@keyframes spin {
+    100% { transform: rotate(360deg); }
+}
+
+@keyframes pulse {
+    0%, 100% { transform: scale(0.6); opacity: 0.6; }
+    50% { transform: scale(1.1); opacity: 1; }
+}
+
+/* Light Mode */
+@media (prefers-color-scheme: light) {
+    .loader-wrapper {
+        background-color: #ffffff; /* light background */
+    }
+    .loader-circle {
+        border-top-color: #3498db; /* darker blue for visibility */
+    }
+    .dot {
+        background-color: #5dade2; /* lighter blue dots */
+    }
+}
+
+/* Dark Mode (default) */
+@media (prefers-color-scheme: dark) {
+    .loader-wrapper {
+        background-color: #10111A; /* dark background */
+    }
+    .loader-circle {
+        border-top-color: #4A90E2; /* vibrant blue */
+    }
+    .dot {
+        background-color: #85C1E9; /* lighter blue dots */
+    }
+}
+
+/* Prevent scrolling while loading */
+body.loading {
+    overflow: hidden;
+}
+
+/* Fade-in for main content */
+.main-content {
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 1s ease, visibility 1s ease;
+}
+.main-content.visible {
+    opacity: 1;
+    visibility: visible;
+}

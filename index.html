@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Streamlab project</title>
+  <link rel="stylesheet" href="style.css" />
+   <link rel="icon" type="image/png" href="Assest/Logo.png" />
+   <style>
+    
+
+
+
+   </style>
+</head>
+<body>
+  <!-- LOADING SCREEN -->
+  <div id="loading">
+    <div class="loading-title" id="loadingText"></div>
+    <div class="loader-bar"><div class="loader-bar-fill" id="loaderFill"></div></div>
+  </div>
+
+  <!-- MAIN CONTENT -->
+  <div id="content" class="content-wrapper">
+    <div class="container">
+      <div id="navbara" class=" container index">
+        <a href="AI.html" class="gradientai-text" data-sound-id="sound-lumixcore">
+  <span class="gradient-fill">Lumix Core AI</span>
+  <span class="trail-star">★</span>
+</a>
+        <a href="Genartor.html" class="gradient-text" data-sound-id="sound-generator">Random Image Generator</a>
+        <a href="Converter.html" class="gradient-text" data-sound-id="sound-convert">Image Converter</a>
+         
+        <a href="ABOUT.HTML" class="gradient-text" data-sound-id="sound-about"> About the AI </a>
+      </div>
+      <div class="a">
+        <h1><span class="gradient-textab">This is My Streamlab Project</span></h1>
+        <p><span class="gradient-textab">Welcome everyone! Today, I’m excited to share my project, which features three main segments:an AI, a Random Image Generator and an Image Converter. Get ready to discover how these tools can enhance your digital experience with fun and creativity! </span></p>
+        <p><span class="gradient-textab">The magic happens with JavaScript and a generous dose of creative CSS, bringing visuals to life and making the interface both interactive and visually appealing.</span></p>
+      </div>
+    </div>
+  </div>
+<script>
+ document.addEventListener('DOMContentLoaded', () => {
+  const links = document.querySelectorAll('.gradient-text, .gradientai-text');
+
+  links.forEach(link => {
+    link.addEventListener('click', e => {
+      const soundId = link.getAttribute('data-sound-id');
+      const sound = document.getElementById(soundId);
+      if (!sound) return;
+
+      e.preventDefault();
+      sound.currentTime = 0;
+      sound.play();
+
+      sound.addEventListener('ended', function handleEnd() {
+        const targetHref = link.getAttribute('href');
+        window.location.href = targetHref;
+        sound.removeEventListener('ended', handleEnd);
+      });
+    });
+  });
+});
+
+</script>
+
+  <script src="script.js"></script>
+   <audio id="sound-home" src="./Assest/Home.mp3" preload="auto"></audio>
+<audio id="sound-lumixcore" src="./Assest/lumix core ai.mp3" preload="auto"></audio>
+<audio id="sound-convert" src="./Assest/Image Converter.mp3" preload="auto"></audio>
+<audio id="sound-about" src="./Assest/About the AI.mp3" preload="auto"></audio>
+<audio id="sound-generator" src="./Assest/Random Image Generator.mp3" preload="auto"></audio>
+
+</body>
+</html>
+

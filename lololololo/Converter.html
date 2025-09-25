@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Image Converter Pro</title>
+  <!-- Make sure this file exists in the same folder -->
+  <link rel="stylesheet" href="converterstyle.css">
+  <link rel="icon" type="image/png" href="Assest/logo1.png" />
+</head>
+<body>
+
+
+  <!-- Loader -->
+  <div id="loading">
+    <div class="loading-title"></div>
+    <div class="loader-bar"><div class="loader-bar-fill" id="loaderFill"></div></div>
+  </div>
+
+  <!-- Main container (hidden until loader finishes) -->
+  <div class="container">
+    <!-- ✅ Navbar -->
+     <!-- <div class="container"> -->
+    <div id="navbara" class="index">
+      <a href="index.html" class="gradient-text" data-sound-id="sound-home">Home</a>
+      <a href="ai.html" class="gradientai-text" data-sound-id="sound-lumixcore">
+        <span class="gradient-fill">Lumix Core AI</span><span class="trail-star">★</span>
+      </a>
+      <a href="generator.html" class="gradient-text" data-sound-id="sound-generator">Random Image Generator</a>
+      <a href="converter.html" class="gradient-text active" data-sound-id="sound-convert">Image Converter</a>
+      <a href="about.html" class="gradient-text" data-sound-id="sound-about">About the AI</a>
+    </div>
+  <!-- </div> -->
+    <!-- Page Title -->
+    <h1>🖼️ <span class="gradient-text">Image Converter Pro</span></h1>
+
+    <!-- Upload Box -->
+    <div class="upload-box">
+      <input type="file" id="fileUpload" accept="image/*" hidden multiple />
+      <label for="fileUpload" class="upload-label">
+        <span class="upload-text" id="uploadText">📁 Drag & drop image(s) here<br>or click to upload</span>
+        <p class="hint">PNG · JPG · WebP · GIF · BMP</p>
+      </label>
+    </div>
+
+    <img id="previewImage" alt="Preview" />
+
+    <!-- Settings -->
+    <div class="settings-grid">
+      <div class="controls-group">
+        <h3>Format & Quality</h3>
+        <label>
+          <span class="gradient-text">Convert to</span>
+          <select id="format">
+            <option value="image/png">PNG</option>
+            <option value="image/jpeg">JPG</option>
+            <option value="image/webp">WebP</option>
+            <option value="image/bmp">BMP</option>
+            <option value="image/gif">GIF</option>
+          </select>
+        </label>
+        <label>
+          <div class="quality-label">
+            <span class="gradient-text">Quality</span>
+            <span id="qualityValue">92%</span>
+          </div>
+          <input type="range" id="qualitySlider" min="1" max="100" value="92" class="slider">
+        </label>
+        <label>
+          <span class="gradient-text">Filter</span>
+          <select id="filter">
+            <option value="none">None</option>
+            <option value="grayscale(100%)">Grayscale</option>
+            <option value="sepia(100%)">Sepia</option>
+            <option value="invert(100%)">Invert</option>
+            <option value="blur(5px)">Blur</option>
+          </select>
+        </label>
+      </div>
+
+      <div class="controls-group">
+        <h3>Resize & Options</h3>
+        <div class="resize-controls">
+          <label><span class="gradient-text">Width</span><input type="number" id="targetW" placeholder="Auto"></label>
+          <label><span class="gradient-text">Height</span><input type="number" id="targetH" placeholder="Auto"></label>
+        </div>
+        <div class="checkbox-group">
+          <label class="checkbox-label">
+            <input type="checkbox" id="aspectLock" checked> Lock Aspect Ratio
+          </label>
+          <label class="checkbox-label">
+            <input type="checkbox" id="metadata" checked disabled> Clean Metadata (EXIF)
+          </label>
+        </div>
+        <div class="size-estimator">
+          <span class="gradient-text">Estimated Size:</span>
+          <span id="sizeEstimate">-- KB</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Action Buttons -->
+    <div class="actions">
+      <button id="convertBtn" disabled>Convert & Download</button>
+      <button id="clearBtn">Clear</button>
+      <button id="voiceBtn" title="Voice Control">🎤</button>
+    </div>
+
+    <!-- Progress -->
+    <div class="progress-container">
+      <p id="progressText" class="progress-text"></p>
+      <div class="progress"><div class="progress-bar"></div></div>
+    </div>
+
+    <!-- History -->
+    <div id="history" class="history-container">
+      <h3>Conversion History</h3>
+      <div id="historyList" class="history-list"></div>
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <script src="converter.js"></script>
+
+  <!-- Sounds -->
+  <audio id="sound-home" src="./Assest/Home.mp3" preload="auto"></audio>
+  <audio id="sound-generator" src="./Assest/Random Image Generator.mp3" preload="auto"></audio>
+  <audio id="sound-lumixcore" src="./Assest/lumix core ai.mp3" preload="auto"></audio>
+  <audio id="sound-about" src="./Assest/About the AI.mp3" preload="auto"></audio>
+</body>
+</html>

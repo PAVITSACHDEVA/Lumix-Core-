@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Navbar Test</title>
+  <link rel="stylesheet" href="converterstyle.css">
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+    }
+  </style>
+</head>
+<body>
+  <!-- Loader -->
+  <div id="loading">
+    <div class="loading-title">Loading...</div>
+    <div class="loader-bar">
+      <div class="loader-bar-fill" id="loaderFill"></div>
+    </div>
+  </div>
+
+  <!-- Main container -->
+  <div class="container">
+    <!-- Navbar -->
+    <div id="navbara" class="index">
+      <a href="index.html" class="gradient-text">Home</a>
+      <a href="ai.html" class="gradientai-text"><span class="gradient-fill">Lumix Core AI</span><span class="trail-star">★</span></a>
+      <a href="generator.html" class="gradient-text">Random Image Generator</a>
+      <a href="converter.html" class="gradient-text active">Image Converter</a>
+      <a href="about.html" class="gradient-text">About the AI</a>
+    </div>
+    <h1>Test Page</h1>
+  </div>
+
+  <script>
+    // Fake loader logic: show container after 2s
+    window.addEventListener('load', () => {
+      const loading = document.getElementById('loading');
+      const loaderFill = document.getElementById('loaderFill');
+      const container = document.querySelector('.container');
+
+      loaderFill.style.width = "100%";
+      setTimeout(() => {
+        loading.style.opacity = '0';
+        setTimeout(() => {
+          loading.style.display = 'none';
+          container.classList.add('show');
+        }, 1000);
+      }, 500);
+    });
+  </script>
+</body>
+</html>

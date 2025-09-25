@@ -1,0 +1,278 @@
+/* ===== BODY ===== */
+body {
+  margin: 0;
+  height: 100vh;
+  display: flex;
+  background: linear-gradient(270deg, #ff6ec4, #7873f5, #4ade80, #facc15);
+  background-size: 800% 800%;
+  animation: gradientMove 15s ease infinite;
+  font-family: Arial, sans-serif;
+  overflow: hidden;
+}
+
+/* ===== LOADING SCREEN ===== */
+#loading {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(135deg, #6a11cb, #2575fc);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-direction: column;
+  z-index: 9999;
+  opacity: 1;
+  transition: opacity 1s ease;
+  will-change: opacity, transform;
+}
+
+.progress {
+  display: block;
+  margin-top: 16px;
+}
+
+.loading-title {
+  font-size: 2rem;
+  font-weight: bold;
+  text-align: center;
+  background: linear-gradient(270deg, #ff00cc, #3333ff, #00ffcc);
+  background-size: 600% 600%;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: gradientShift 6s ease infinite, pulseGlow 2s ease-in-out infinite;
+  margin-bottom: 20px;
+  max-width: 600px;
+}
+
+.loader-bar {
+  width: 320px;
+  height: 14px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.2);
+  box-shadow: inset 0 0 6px rgba(255, 255, 255, 0.3);
+  overflow: hidden;
+}
+
+.loader-bar-fill {
+  width: 0%;
+  height: 100%;
+  background: linear-gradient(270deg, #6EE7B7, #3B82F6, #9333EA);
+  background-size: 400% 400%;
+  animation: gradientFlow 4s ease infinite;
+  transition: width 0.4s ease-in-out;
+}
+
+/* ===== MAIN CONTENT ===== */
+#content {
+  display: none;
+  opacity: 0;
+  transform: translateY(20px);
+  transition: opacity 0.6s ease, transform 0.6s ease;
+}
+
+#content.show {
+  display: flex;
+  opacity: 1;
+  transform: translateY(0);
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  width: 100%;
+}
+
+/* ===== CONTAINER ===== */
+.container {
+  background-color: rgba(255, 255, 255, 0.3);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border-radius: 16px;
+  box-shadow: 0 0 12px rgba(255, 255, 255, 0.2);
+  padding: 24px;
+  max-width: 980px;
+  width: 100%;
+  text-align: center;
+}
+
+.content-wrapper {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  padding: 24px;
+}
+
+/* ===== NAVBAR ===== */
+#navbara {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  max-width: 600px;
+  margin: 0 auto 24px;
+  gap: 16px;
+}
+
+.gradient-text {
+  padding: 8px 12px;
+  font-size: 1.4rem;
+  transition: transform 0.3s ease;
+  font-weight: 600;
+  font-family: Arial, sans-serif;
+  background: linear-gradient(270deg, #833AB4, #FD1D1D, #FD552C, #d8840f);
+  background-size: 800% 800%;
+  animation: gradientMove 5s ease infinite;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  color: transparent;
+  text-decoration: none;
+}
+
+.gradient-text:hover {
+  transform: scale(1.05);
+}
+
+/* ===== HEADINGS & PARAGRAPHS ===== */
+.gradient-textab {
+  font-size: 1.5rem;
+  font-weight: 500;
+  line-height: 1.6;
+  display: block;
+  margin-bottom: 12px;
+  font-family: Arial, sans-serif;
+  background: linear-gradient(270deg, #833AB4, #FD1D1D, #FD552C, #c07712);
+  background-size: 800% 800%;
+  animation: gradientMove 5s ease infinite;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  color: transparent;
+}
+
+.gradientai-text {
+  position: relative;
+  display: inline-block;
+  padding: 8px 12px;
+  font-size: 1.6rem;
+  transition: transform 0.3s ease;
+  font-weight: 600;
+  overflow: visible;
+}
+
+/* ✅ Visible gradient fill */
+.gradient-fill {
+  background: linear-gradient(270deg, #833AB4, #FD1D1D, #FD552C, #d8840f);
+  background-size: 800% 800%;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: gradientShift 6s ease infinite;
+  display: inline-block;
+}
+
+/* 🌈 Light mode override */
+body.light-mode .gradient-fill {
+  background: linear-gradient(270deg, #ae8e44, #FFC29B, #F39F9F, #B95E82);
+   
+  background-size: 600% 600%;
+    -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: gradientShift 15s ease infinite;
+}
+
+/* ✨ Star comet effect */
+.trail-star {
+  position: absolute;
+  top: 50%;
+  left: -20px;
+  transform: translateY(-50%);
+  font-size: 0.9rem;
+  color: white;
+  opacity: 0;
+  animation: cometTrail 2.5s ease-in-out infinite;
+  pointer-events: none;
+}
+
+/* 🌈 Light mode star fix */
+body.light-mode .trail-star {
+  color: #333333;
+  text-shadow: 0 0 6px rgba(0,0,0,0.2);
+}
+.gradient-text,
+.gradientai-text {
+  position: relative; /* 👈 This anchors the star */
+}
+
+/* ✨ Animations */
+@keyframes gradientShift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+@keyframes cometTrail {
+  0% {
+    left: -20px;
+    opacity: 0;
+    transform: translateY(-50%) scale(0.5);
+    text-shadow: none;
+  }
+  30% {
+    opacity: 1;
+    text-shadow: 0 0 6px rgba(255,255,255,0.6);
+  }
+  50% {
+    left: 50%;
+    transform: translateY(-50%) scale(1.2);
+    text-shadow: 0 0 12px rgba(255,255,255,0.8);
+  }
+  70% {
+    opacity: 0.6;
+    text-shadow: 0 0 6px rgba(255,255,255,0.4);
+  }
+  100% {
+    left: 100%;
+    opacity: 0;
+    transform: translateY(-50%) scale(0.8);
+    text-shadow: none;
+  }
+}
+
+/* ===== KEYFRAMES ===== */
+@keyframes gradientMove {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+@keyframes gradientShift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+@keyframes pulseGlow {
+  0%, 100% { text-shadow: 0 0 5px rgba(255, 255, 255, 0.5); }
+  50% { text-shadow: 0 0 20px rgba(255, 255, 255, 1); }
+}
+
+@keyframes gradientFlow {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes pulseSlider {
+  0%, 100% { box-shadow: 0 0 6px rgba(255, 255, 255, 0.4); }
+  50% { box-shadow: 0 0 12px rgba(255, 255, 255, 0.8); }
+}
+#generatedImage {
+  background-color: #1a1a1a;
+  border: 1px solid #444;
+  object-fit: cover;
+}
