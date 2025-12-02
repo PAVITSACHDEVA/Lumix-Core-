@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Batch MP3 Converter</title>
+  <style>
+    body { font-family: sans-serif; padding: 20px; }
+    #dropzone {
+      width: 100%; max-width: 400px; height: 150px;
+      border: 2px dashed #aaa; border-radius: 10px;
+      text-align: center; line-height: 150px;
+      margin-bottom: 10px; color: #555;
+    }
+    #statusList { margin-top: 10px; list-style: none; padding: 0; }
+    #statusList li { margin-bottom: 5px; }
+  </style>
+</head>
+<body>
+  <h2>Batch Convert Files to MP3</h2>
+  <div id="dropzone">Drop files here</div>
+  <input type="file" id="uploader" multiple accept="audio/*,video/*" />
+  <button onclick="convertAll()">Convert All</button>
+  <ul id="statusList"></ul>
+  <a id="downloadLink" style="display:none">Download ZIP</a>
+
+  <script type="module">
+    import { createFFmpeg, fetchFile } from 'https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.6/dist/ffmpeg.min.js';
+    import JSZip from 'https://cdn.jsdelivr.net/npm/jszip@3.10.1/+esm';
+
+    const ffmpeg = createFFmpeg({ log: true });
+    let files = [];
+
+    const dropzone = document.getElementById('dropzone');
+    dropzone.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      dropzone.style.borderColor = '#00f';
+      dropzone.textContent = 'Release to upload';
+    });
+
+    dropzone.addEventListener('dragleave', () => {
+      dropzone.style.borderColor = '#aaa';
+      dropzone.textContent = 'Drop files here';
+    });
+
+    dropzone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      dropzone.style.borderColor = '#aaa';
+      dropzone.textContent = 'Files received!';
+      files = Array.from(e.dataTransfer.files);
+    });
+
+    async function convertAll() {
+      const inputFiles = files.length ? files : Array.from(document.getElementById('uploader').files);
+      const statusList = document.getElementById('statusList');
+      const downloadLink = document.getElementById('downloadLink');
+      statusList.innerHTML = '';
+      downloadLink.style.display = 'none';
+
+      if (!inputFiles.length) {
+        statusList.innerHTML = '<li>Please select or drop files.</li>';
+        return;
+      }
+
+      if (!ffmpeg.isLoaded()) {
+        statusList.innerHTML += '<li>Loading FFmpeg...</li>';
+        await ffmpeg.load();
+      }
+
+      const zip = new JSZip();
+
+      for (const file of inputFiles) {
+        const ext = file.name.split('.').pop();
+        const baseName = file.name.split('.').slice(0, -1).join('.');
+        const inputName = `input.${ext}`;
+        const outputName = `${baseName}.mp3`;
+
+        const statusItem = document.createElement('li');
+        statusItem.textContent = `Converting ${file.name}...`;
+        statusList.appendChild(statusItem);
+
+        try {
+          ffmpeg.FS('writeFile', inputName, await fetchFile(file));
+          await ffmpeg.run('-i', inputName, '-vn', '-ar', '44100', '-ac', '2', '-b:a', '192k', outputName);
+          const data = ffmpeg.FS('readFile', outputName);
+          zip.file(outputName, data.buffer);
+          ffmpeg.FS('unlink', inputName);
+          ffmpeg.FS('unlink', outputName);
+          statusItem.textContent = `✅ ${file.name} converted to MP3`;
+        } catch (err) {
+          console.error(`Error converting ${file.name}:`, err);
+          statusItem.textContent = `❌ Failed to convert ${file.name}`;
+        }
+      }
+
+      const zipBlob = await zip.generateAsync({ type: 'blob' });
+      const url = URL.createObjectURL(zipBlob);
+
+      downloadLink.href = url;
+      downloadLink.download = 'converted_mp3s.zip';
+      downloadLink.textContent = 'Download ZIP';
+      downloadLink.style.display = 'inline';
+      statusList.innerHTML += '<li><strong>All files processed!</strong></li>';
+    }
+  </script>
+</body>
+</html>

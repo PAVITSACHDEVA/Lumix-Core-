@@ -1162,27 +1162,54 @@
 
             return reply;
         }
+async function callGeminiAPI(content, systemPrompt = "You are a helpful assistant.") {
+    const modelsToTry = [
+        "gemini-2.0-flash",
+        "gemini-2.0-flash-001",
+        "gemini-2.0-pro",
+        "gemini-2.0-pro-001"
+    ];
 
-        async function callGeminiAPI(content, systemPrompt = "You are a helpful assistant.") {
-            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`;
-            const payload = {
-                contents: [{ role: "user", parts: [{ text: content }] }],
-                systemInstruction: { parts: [{ text: systemPrompt }] }
-            };
+    const payload = {
+        contents: [
+            { role: "user", parts: [{ text: `${systemPrompt}\n\n${content}` }] }
+        ]
+    };
+
+    let lastError = "";
+
+    for (const model of modelsToTry) {
+        try {
+            const url = `https://generativelanguage.googleapis.com/v1/models/${model}:generateContent?key=${GEMINI_API_KEY}`;
+
             const res = await fetch(url, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(payload)
             });
+
             if (!res.ok) {
-                const err = await res.json();
-                throw new Error(err.error?.message || "Gemini API error");
+                const err = await res.json().catch(() => ({}));
+                lastError = err.error?.message || `HTTP ${res.status}`;
+                continue;
             }
+
             const json = await res.json();
-            return {
-                text: json.candidates?.[0]?.content?.parts?.[0]?.text || ""
-            };
+
+            const text =
+                json?.candidates?.[0]?.content?.parts?.[0]?.text ||
+                json?.candidates?.[0]?.output ||
+                "";
+
+            return { text };
+        } catch (e) {
+            lastError = e.message;
         }
+    }
+
+    throw new Error(`Gemini API failed. Last error: ${lastError}`);
+}
+
 
         async function callDeepSeekAPI(content, systemPrompt = "You are a helpful assistant.") {
             // This function is kept for reference but will not be called while disabled.
