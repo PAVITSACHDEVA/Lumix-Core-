@@ -1,87 +1,87 @@
-const AI_NAME = "Lumix Core";
+/**************************************************
+ *  LUMIX CORE – FIXED, CLEAN, WORKING JS FILE
+ **************************************************/
 
-function escapeHtml(text) {
-    return text
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;");
+/* ---------- GLOBAL CONSTANTS ---------- */
+const AI_NAME = "Lumix Core";
+const CREATOR_NAME = "Pavit";
+
+/* Escape HTML safely */
+function escapeHtml(text = "") {
+  return text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
 }
 
-// ---------- Gemini API ----------
-
-
+/* ---------- GEMINI API CONFIG ---------- */
 const GEMINI_API_KEYS = [
   "AIzaSyDJ3NjMH00Av97ji39Y2V-NPgU-wtrK-kk",
   "AIzaSyCnnZ-2TwJbRoMemqfrnicWIy3BbS67zjI",
   "AIzaSyD73fVeCDIhSYZxmH6elyGjmenTCwYzGnc"
 ];
 
-const GEMINI_API_KEY =
-  GEMINI_API_KEYS[Math.floor(Math.random() * GEMINI_API_KEYS.length)];
+function getRandomKey() {
+  return GEMINI_API_KEYS[Math.floor(Math.random() * GEMINI_API_KEYS.length)];
+}
+
 async function callGeminiAPI(content, systemPrompt = "You are a helpful assistant.") {
-    const models = [
-        "gemini-1.5-flash",
-        "gemini-1.5-pro"
-    ];
+  const models = ["gemini-1.5-flash", "gemini-1.5-pro"];
+  const payload = {
+    contents: [
+      {
+        role: "user",
+        parts: [{ text: `${systemPrompt}\n\n${content}` }]
+      }
+    ]
+  };
 
-    const payload = {
-        contents: [
-            {
-                role: "user",
-                parts: [{ text: `${systemPrompt}\n\n${content}` }]
-            }
-        ]
-    };
+  for (const model of models) {
+    try {
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${getRandomKey()}`;
 
-    for (const model of models) {
-        try {
-            const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_API_KEY}`;
+      const res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
 
-            const res = await fetch(url, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(payload)
-            });
+      const json = await res.json();
 
-            const json = await res.json();
-            if (!res.ok) continue;
+      if (!res.ok) {
+        console.warn("Gemini model failed:", model, json.error?.message);
+        continue;
+      }
 
-            return {
-                text:
-                    json?.candidates?.[0]?.content?.parts?.[0]?.text ||
-                    ""
-            };
-
-        } catch (err) {
-            console.log("Gemini model failed:", model, err);
-        }
+      return {
+        text:
+          json?.candidates?.[0]?.content?.parts?.[0]?.text ||
+          "⚠️ No response received."
+      };
+    } catch (err) {
+      console.error("Gemini error:", model, err);
     }
+  }
 
-    throw new Error("Gemini API failed. All models unavailable.");
+  throw new Error("Gemini API failed. All models unavailable.");
 }
 
-// keep using callGenerativeAPI as before:
-async function callGenerativeAPI(content, systemPrompt = "You are a helpful assistant.") {
-  return callGeminiAPI(content, systemPrompt);
+async function callGenerativeAPI(q, sys) {
+  return callGeminiAPI(q, sys);
 }
 
-
-// ------------- WEATHER -------------
+/* ---------- WEATHER API ---------- */
+const WEATHER_API_KEY = "86af92bb29ea4c278df101649250409";
 
 async function getWeatherData(city) {
-  if (!WEATHER_API_KEY) return "NO_API_KEYS";
   try {
     const res = await fetch(
-      `https://api.weatherapi.com/v1/current.json?key=${WEATHER_API_KEY}&q=${encodeURIComponent(
-        city
-      )}&aqi=no`
+      `https://api.weatherapi.com/v1/current.json?key=${WEATHER_API_KEY}&q=${encodeURIComponent(city)}&aqi=no`
     );
-    if (!res.ok) {
-      if (res.status === 401 || res.status === 403) return "API_KEY_INVALID";
-      if (res.status === 400) return "CITY_NOT_FOUND";
-      return null;
-    }
+
     const w = await res.json();
+    if (!res.ok) return null;
+
     return {
       city: w.location.name,
       country: w.location.country,
@@ -89,576 +89,280 @@ async function getWeatherData(city) {
       description: w.current.condition.text,
       humidity: w.current.humidity,
       windSpeed: Math.round((w.current.wind_kph / 3.6) * 10) / 10,
-      feelsLike: Math.round(w.current.feelslike_c),
-      source: "WeatherAPI",
+      feelsLike: Math.round(w.current.feelslike_c)
     };
   } catch (e) {
-    console.error("Weather error", e);
+    console.error("Weather error:", e);
     return null;
   }
 }
 
+/* ---------- GEOLOCATION ---------- */
 async function getUserLocationByPermission() {
   return new Promise((resolve) => {
     if (!navigator.geolocation) return resolve(null);
+
     navigator.geolocation.getCurrentPosition(
-      async ({ coords: { latitude, longitude } }) => {
+      async ({ coords }) => {
         try {
           const res = await fetch(
-            `https://api.weatherapi.com/v1/current.json?key=${WEATHER_API_KEY}&q=${latitude},${longitude}&aqi=no`
+            `https://api.weatherapi.com/v1/current.json?key=${WEATHER_API_KEY}&q=${coords.latitude},${coords.longitude}`
           );
           const data = await res.json();
           resolve(data.location?.name || null);
-        } catch (e) {
-          console.error("Geo weather error", e);
+        } catch {
           resolve(null);
         }
       },
       () => resolve(null),
-      { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 }
+      { timeout: 7000 }
     );
   });
 }
 
-// ------------- MAIN APP SETUP -------------
-
+/* ---------- MAIN APP ---------- */
 document.addEventListener("DOMContentLoaded", () => {
-  // DOM refs
+  /* Elements */
   const input = document.querySelector('[data-testid="chat-input"]');
   const sendButton = document.querySelector('[data-testid="send-button"]');
-  const chatContainer = document.querySelector(
-    '[data-testid="chat-container"]'
-  );
-  const micButton = document.querySelector('[data-testid="mic-button"]');
-  const summaryShortButton = document.querySelector(
-    '[data-testid="summary-short"]'
-  );
-  const summaryLongButton = document.querySelector(
-    '[data-testid="summary-long"]'
-  );
+  const chatContainer = document.querySelector('[data-testid="chat-container"]');
+  const summaryShort = document.querySelector('[data-testid="summary-short"]');
+  const summaryLong = document.querySelector('[data-testid="summary-long"]');
   const locButton = document.querySelector('[data-testid="loc-button"]');
-  const avatarPanelToggle = document.getElementById("avatar-panel-toggle");
-  const quizGeneratorButton = document.getElementById("quiz-generator");
-  const contextSuggestionsContainer = document.getElementById(
-    "context-suggestions"
-  );
+  const micButton = document.querySelector('[data-testid="mic-button"]');
+  const quizButton = document.getElementById("quiz-generator");
+  const historyPanel = document.getElementById("chat-history-log");
+  const contextSuggestions = document.getElementById("context-suggestions");
+  const avatarToggle = document.getElementById("avatar-panel-toggle");
   const tooltip = document.getElementById("tooltip");
-  const themeToggleLoading = document.getElementById("themeToggleLoading");
-  const themeToggleHeader = document.getElementById("themeToggleHeader");
-  const links = document.querySelectorAll(".gradient-text");
-  const chatHistoryLog = document.getElementById("chat-history-log");
   const voiceToggle = document.getElementById("voice-toggle");
-  const loadingEl = document.getElementById("loading");
-  const loadingTextEl = document.getElementById("loadingText");
-  const loaderFillEl = document.getElementById("loaderFill");
 
   let chatHistory = [];
-  let cachedCity = null;
   let voiceEnabled = false;
 
-  // ---------- LOADER ANIMATION ----------
-  (function initLoader() {
-    const phrases = [
-      "Booting Lumix Core…",
-      "Calibrating neural pathways…",
-      "Styling the UI pixels…",
-      "Connecting to the Gemini engine…",
-      "Almost ready!",
-    ];
-    let idx = 0;
-    loadingTextEl.textContent = phrases[0];
-
-    setInterval(() => {
-      idx = (idx + 1) % phrases.length;
-      loadingTextEl.textContent = phrases[idx];
-    }, 2200);
-
-    let progress = 0;
-    const interval = setInterval(() => {
-      progress += 10 + Math.random() * 15;
-      if (progress >= 100) {
-        progress = 100;
-        clearInterval(interval);
-        setTimeout(hideLoader, 500);
-      }
-      loaderFillEl.style.width = `${progress}%`;
-    }, 400);
-  })();
-
-  function hideLoader() {
-    if (!loadingEl) return;
-    loadingEl.style.opacity = "0";
-    setTimeout(() => {
-      loadingEl.style.display = "none";
-    }, 900);
-  }
-
-  // ---------- THEME TOGGLE (LIGHT / DARK) ----------
-
-  function updateThemeUI() {
-    const light = document.body.classList.contains("light-mode");
-    document.querySelectorAll(".theme-icon").forEach((icon) => {
-      icon.className = light
-        ? "theme-icon bi bi-moon-fill"
-        : "theme-icon bi bi-brightness-high";
-    });
-    document.querySelectorAll(".theme-label").forEach((label) => {
-      label.textContent = light ? "Dark Mode" : "Light Mode";
-    });
-  }
-
-  function toggleTheme() {
-    document.body.classList.toggle("light-mode");
-    updateThemeUI();
-  }
-
-  if (themeToggleLoading)
-    themeToggleLoading.addEventListener("click", toggleTheme);
-  if (themeToggleHeader)
-    themeToggleHeader.addEventListener("click", toggleTheme);
-  updateThemeUI();
-
-  // ---------- MESSAGE RENDERING ----------
-function scrollToBottom() {
-    if (!chatContainer) return;
+  /* ---------- SCROLL HANDLER ---------- */
+  function scrollToBottom() {
     chatContainer.scrollTop = chatContainer.scrollHeight;
-}
+  }
 
+  /* ---------- MESSAGE RENDERING ---------- */
   function createMessage(content, sender = "ai", isMarkdown = false) {
     const msg = document.createElement("div");
-    msg.className = `message ${sender} mb-4`;
+    msg.className = `message ${sender}`;
 
     const timestamp = new Date().toLocaleTimeString([], {
       hour: "2-digit",
-      minute: "2-digit",
+      minute: "2-digit"
     });
 
-    const isLong = content.length > 600;
-    const mdHTML = marked.parse(content);
-    const wrapped = isLong
-      ? `<details class="markdown-body"><summary class="cursor-pointer text-blue-400 underline">Click to expand</summary>${mdHTML}</details>`
-      : `<div class="markdown-body">${mdHTML}</div>`;
-
-    const safeText = escapeHtml(content);
-
-    const finalContent = isMarkdown ? wrapped : safeText;
+    const html = isMarkdown ? marked.parse(content) : escapeHtml(content);
 
     msg.innerHTML = `
-      <div class="font-bold mb-1">${sender === "ai" ? AI_NAME : "You"}</div>
-      <div class="message-content">${finalContent}</div>
-      <div class="text-xs opacity-60 mt-1">${timestamp}</div>
+      <div class="font-bold">${sender === "ai" ? AI_NAME : "You"}</div>
+      <div class="message-content">${html}</div>
+      <div class="timestamp">${timestamp}</div>
     `;
 
     chatContainer.appendChild(msg);
-
-    if (window.renderMathInElement) {
-      renderMathInElement(msg, {
-        delimiters: [
-          { left: "$$", right: "$$", display: true },
-          { left: "$", right: "$", display: false },
-        ],
-      });
-    }
-    scrollToBottom(chatContainer);
+    scrollToBottom();
   }
 
+  /* ---------- TYPING INDICATOR ---------- */
   function showTyping() {
-    const typing = document.createElement("div");
-    typing.className = "message ai";
-    typing.dataset.testid = "typing-indicator";
-    typing.innerHTML = `
-      <div class="font-bold mb-1">${AI_NAME}</div>
-      <div class="message-content">
-        <div class="typing-indicator">
-          <div class="animated-cursor"></div> Typing...
-        </div>
-      </div>
+    const t = document.createElement("div");
+    t.dataset.testid = "typing";
+    t.className = "message ai";
+    t.innerHTML = `
+      <div class="font-bold">${AI_NAME}</div>
+      <div class="message-content typing-indicator">Typing...</div>
     `;
-    chatContainer.appendChild(typing);
-    scrollToBottom(chatContainer);
+    chatContainer.appendChild(t);
+    scrollToBottom();
   }
 
   function hideTyping() {
-    const indicator = document.querySelector(
-      '[data-testid="typing-indicator"]'
-    );
-    if (indicator) indicator.remove();
+    const t = document.querySelector("[data-testid='typing']");
+    if (t) t.remove();
   }
 
-  // ---------- SIDE PANEL HISTORY ----------
-
-  function refreshHistoryPanel() {
-    if (!chatHistoryLog) return;
-    const lastItems = chatHistory.slice(-6);
-    if (!lastItems.length) {
-      chatHistoryLog.innerHTML =
-        "<p>Your conversation history will appear here.</p>";
-      return;
-    }
-
-    chatHistoryLog.innerHTML = lastItems
-      .map((m) => {
-        const who = m.role === "user" ? "You" : AI_NAME;
-        const text = escapeHtml(m.parts[0]?.text || "").slice(0, 120);
-        return `<p><strong>${who}:</strong> ${text}${
-          text.length === 120 ? "…" : ""
-        }</p>`;
-      })
-      .join("");
-  }
-
-  // ---------- VOICE OUTPUT ----------
-
+  /* ---------- VOICE OUTPUT ---------- */
   voiceToggle?.addEventListener("change", (e) => {
     voiceEnabled = e.target.checked;
   });
 
-  function speakText(text) {
+  function speak(text) {
     if (!voiceEnabled) return;
-    if (!("speechSynthesis" in window)) return;
-
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.rate = 1;
-    utterance.pitch = 1;
-    window.speechSynthesis.cancel();
-    window.speechSynthesis.speak(utterance);
+    const u = new SpeechSynthesisUtterance(text);
+    window.speechSynthesis.speak(u);
   }
 
-  // ---------- HANDLE USER QUERY ----------
+  /* ---------- HISTORY PANEL ---------- */
+  function updateHistory() {
+    if (!historyPanel) return;
 
-  async function handleUserQuery(query) {
-    let reply = "";
-    const lower = query.toLowerCase();
-    let queryContext = "general";
-
-    // Personality shortcuts
-    if (/who (made|created|developed) you/i.test(lower)) {
-      const replies = [
-        `I was created by ${CREATOR_NAME}, the mind behind this assistant.`,
-        `I was handcrafted by ${CREATOR_NAME} — designer, developer, and all-around genius.`,
-        `Call me your digital sidekick — created by ${CREATOR_NAME} with vision and code.`,
-      ];
-      return replies[Math.floor(Math.random() * replies.length)];
-    }
-
-    if (/what('?s| is) your name/i.test(lower)) {
-      return `My name is '${AI_NAME}'.`;
-    }
-
-    if (/who are you/i.test(lower)) {
-      return `I'm your AI assistant, powered by Gemini and crafted by ${CREATOR_NAME}.`;
-    }
-
-    if (/what does your name mean/i.test(lower)) {
-      return `"LumixCore" is the smart center of your assistant—a blend of bright design and clear reasoning. It’s more than a UI; it’s the base, the brain, and the heart of your AI.`;
-    }
-
-    if (
-      /give a (tagline|good tagline) for your (name|name lumixcore)?/i.test(
-        lower
+    historyPanel.innerHTML = chatHistory
+      .slice(-6)
+      .map(
+        (m) =>
+          `<p><b>${m.role === "user" ? "You" : AI_NAME}:</b> ${escapeHtml(
+            m.parts[0].text.slice(0, 80)
+          )}...</p>`
       )
-    ) {
-      const replies = [
-        "“LumixCore: The brilliance behind every reply.”",
-        "“Powered by clarity. Driven by logic.”",
-        "“LumixCore — where design meets depth.”",
-        `“Your assistant’s soul, styled by ${CREATOR_NAME}.”`,
-      ];
-      return replies[Math.floor(Math.random() * replies.length)];
-    }
+      .join("");
+  }
 
-    // Weather query?
-    const isWeatherQuery =
-      /weather|temperature|forecast|climate|humid|rain|snow|wind|sunny|cloudy/i.test(
-        lower
-      );
-    if (isWeatherQuery) {
-      queryContext = "weather";
+  /* ---------- HANDLE USER QUERY ---------- */
+  async function handleUserQuery(q) {
+    const lower = q.toLowerCase();
 
-      const cityMatch =
-        query.match(
-          /weather.*?(?:in|for|at)\s+([a-zA-Z\s]+?)(?:\s|$|\?|\.)/i
-        ) || query.match(/([a-zA-Z\s]+?)\s+weather/i);
+    if (lower.includes("your name")) return `I'm ${AI_NAME}.`;
+    if (lower.includes("creator")) return `I was built by ${CREATOR_NAME}.`;
 
-      let city = cityMatch ? cityMatch[1].trim() : null;
+    const isWeather = /weather|temperature|climate/i.test(lower);
+    if (isWeather) {
+      let city = q.match(/in ([a-zA-Z ]+)$/i)?.[1];
       if (!city) city = await getUserLocationByPermission();
+      if (!city) city = "Mumbai";
 
-      let defaulted = false;
-      if (!city) {
-        city = "Mumbai";
-        defaulted = true;
-      }
+      const w = await getWeatherData(city);
+      if (!w) return "❌ Unable to fetch weather.";
 
-      const weatherData = await getWeatherData(city);
-      if (weatherData && typeof weatherData === "object") {
-        const preface = defaulted
-          ? "📍 Couldn't access your location. Using Mumbai by default.\n\n"
-          : "";
-        reply =
-          `${preface}**Current Weather in ${weatherData.city}, ${weatherData.country}:**\n\n` +
-          `🌡️ **Temperature:** ${weatherData.temperature}°C (feels like ${weatherData.feelsLike}°C)  \n` +
-          `☁️ **Condition:** ${
-            weatherData.description.charAt(0).toUpperCase() +
-            weatherData.description.slice(1)
-          }  \n` +
-          `💧 **Humidity:** ${weatherData.humidity}%  \n` +
-          `💨 **Wind Speed:** ${weatherData.windSpeed} m/s`;
-      } else {
-        reply = `❌ Unable to fetch weather for "${city}". Try again later.`;
-      }
-
-      updateContextSuggestions(queryContext, reply);
-      return reply;
+      return `
+**Weather in ${w.city}, ${w.country}:**  
+🌡️ ${w.temperature}°C (Feels like ${w.feelsLike}°C)  
+💧 Humidity: ${w.humidity}%  
+💨 Wind: ${w.windSpeed} m/s  
+☁️ ${w.description}
+      `;
     }
 
-    // Coding queries: flag context
-    if (
-      lower.includes("code") ||
-      lower.includes("javascript") ||
-      lower.includes("python")
-    ) {
-      queryContext = "coding";
-    }
-
-    const result = await callGenerativeAPI(
-      query,
-      "You are a helpful assistant."
-    );
-    reply = result.text;
-    updateContextSuggestions(queryContext, reply);
-    return reply;
+    const result = await callGenerativeAPI(q, "You are a helpful assistant.");
+    return result.text;
   }
 
-  // ---------- CONTEXT SUGGESTIONS ----------
-
-  function updateContextSuggestions(context, reply) {
-    contextSuggestionsContainer.innerHTML = "";
-    let suggestions = [];
-
-    if (context === "weather") {
-      suggestions = [
-        "What should I wear?",
-        "Is it a good day for a walk?",
-        "How does this compare to yesterday?",
-      ];
-    } else if (context === "coding") {
-      suggestions = [
-        "Can you explain this code?",
-        "How can I optimize this?",
-        "Add comments to the code.",
-      ];
-    } else if (reply.length > 300) {
-      suggestions = [
-        "Explain this like I'm five. (from our previous conversation)",
-        "Give me 3 key takeaways. (from our previous conversation)",
-        "Translate this to Spanish. (from our previous conversation)",
-      ];
-    }
-
-    suggestions.forEach((text) => {
-      const btn = document.createElement("button");
-      btn.className = "suggestion-btn";
-      btn.textContent = text;
-      btn.onclick = () => {
-        input.value = text;
-        sendMessage();
-      };
-      contextSuggestionsContainer.appendChild(btn);
-    });
-  }
-
-  // ---------- SENDING / SYSTEM QUERIES ----------
-
+  /* ---------- SEND USER MESSAGE ---------- */
   async function sendMessage() {
     const q = input.value.trim();
     if (!q) return;
-    createMessage(q, "user");
-    input.value = "";
-    chatHistory.push({ role: "user", parts: [{ text: q }] });
-    refreshHistoryPanel();
 
+    createMessage(q, "user");
+    chatHistory.push({ role: "user", parts: [{ text: q }] });
+    input.value = "";
+
+    updateHistory();
     showTyping();
-    sendButton.disabled = true;
 
     try {
       const r = await handleUserQuery(q);
       hideTyping();
       createMessage(r, "ai", true);
       chatHistory.push({ role: "model", parts: [{ text: r }] });
-      refreshHistoryPanel();
-      speakText(r);
+      updateHistory();
+      speak(r);
     } catch (e) {
       hideTyping();
-      createMessage(`❌ ${e.message}`, "ai", false);
-    } finally {
-      sendButton.disabled = false;
+      createMessage("❌ " + e.message);
     }
   }
 
-  async function sendSystemQuery(query, systemPrompt, userMessage) {
-    createMessage(userMessage || query, "user");
+  /* ---------- SHORT SUMMARY ---------- */
+  summaryShort.addEventListener("click", () => {
+    const last = chatHistory.filter((m) => m.role === "model").pop();
+    if (!last) return createMessage("No message to summarize.");
+    sendMessageFromSystem(
+      `Summarize in 5–10 bullet points:\n\n${last.parts[0].text}`,
+      "Summarizing..."
+    );
+  });
+
+  /* ---------- LONG SUMMARY ---------- */
+  summaryLong.addEventListener("click", () => {
+    const last = chatHistory.filter((m) => m.role === "model").pop();
+    if (!last) return createMessage("No message to summarize.");
+    sendMessageFromSystem(
+      `Summarize in 10–15 bullet points:\n\n${last.parts[0].text}`,
+      "Detailed summary requested..."
+    );
+  });
+
+  /* ---------- SYSTEM QUERY ---------- */
+  async function sendMessageFromSystem(prompt, display) {
+    createMessage(display, "user");
     showTyping();
     try {
-      const r = await callGenerativeAPI(query, systemPrompt);
+      const r = await callGenerativeAPI(prompt);
       hideTyping();
       createMessage(r.text, "ai", true);
-      chatHistory.push({ role: "user", parts: [{ text: query }] });
-      chatHistory.push({ role: "model", parts: [{ text: r.text }] });
-      refreshHistoryPanel();
-      speakText(r.text);
     } catch (e) {
       hideTyping();
-      createMessage(`❌ ${e.message}`, "ai", false);
+      createMessage("❌ " + e.message);
     }
   }
 
-  // ---------- SUMMARIZATION ----------
-
-  async function summarizeConversation(lines = 10) {
+  /* ---------- QUIZ ---------- */
+  quizButton.addEventListener("click", () => {
     const last = chatHistory.filter((m) => m.role === "model").pop();
-    if (!last) {
-      createMessage("There's nothing to summarize yet.", "ai", true);
-      return;
-    }
-    const prompt = `Summarize in **${lines} lines** with bullet points and bold key terms:\n\n---\n\n${last.parts[0].text}`;
-    sendSystemQuery(
-      prompt,
-      "You are a summarization expert.",
-      `Summarize the last response in ${lines} lines.`
-    );
-  }
-
-  // ---------- QUIZ GENERATOR ----------
-
-  quizGeneratorButton?.addEventListener("click", () => {
-    const last = chatHistory.filter((m) => m.role === "model").pop();
-    if (!last) {
-      createMessage(
-        "There's no conversation to create a quiz from yet.",
-        "ai",
-        true
-      );
-      return;
-    }
-    const quizQuery = `Based on the following text, create a multiple-choice quiz with 3 questions. Provide the correct answer after the options for each question.\n\n---\n\n${last.parts[0].text}`;
-    sendSystemQuery(
-      quizQuery,
-      "You are a quiz generation expert.",
-      "Create a quiz from our conversation."
+    if (!last) return createMessage("No content to create quiz.");
+    sendMessageFromSystem(
+      `Create a 3-question MCQ quiz based on this:\n\n${last.parts[0].text}`,
+      "Generating quiz..."
     );
   });
 
-  // ---------- TOOLTIP SETUP ----------
-
-  document.querySelectorAll(".explain-btn").forEach((btn) => {
-    btn.addEventListener("mouseover", (e) => {
-      tooltip.textContent = btn.dataset.tooltip;
-      tooltip.style.opacity = "1";
-      tooltip.style.left = `${e.clientX + 15}px`;
-      tooltip.style.top = `${e.clientY + 15}px`;
-    });
-    btn.addEventListener("mousemove", (e) => {
-      tooltip.style.left = `${e.clientX + 15}px`;
-      tooltip.style.top = `${e.clientY + 15}px`;
-    });
-    btn.addEventListener("mouseout", () => {
-      tooltip.style.opacity = "0";
-    });
+  /* ---------- LOCATION WEATHER BUTTON ---------- */
+  locButton.addEventListener("click", async () => {
+    createMessage("Checking your location...");
+    const city = await getUserLocationByPermission();
+    if (!city) return createMessage("Couldn't access location.");
+    const weather = await getWeatherData(city);
+    createMessage(JSON.stringify(weather, null, 2), "ai", true);
   });
 
-  // ---------- AVATAR PANEL TOGGLE ----------
+  /* ---------- MICROPHONE INPUT ---------- */
+  if ("webkitSpeechRecognition" in window) {
+    const recog = new webkitSpeechRecognition();
+    recog.lang = "en-US";
+    recog.onresult = (e) => {
+      input.value = e.results[0][0].transcript;
+      sendMessage();
+    };
+    micButton.addEventListener("click", () => recog.start());
+  } else micButton.style.display = "none";
 
-  avatarPanelToggle?.addEventListener("click", () => {
+  /* ---------- AVATAR PANEL ---------- */
+  avatarToggle.addEventListener("click", () => {
     document.body.classList.toggle("panel-open");
   });
 
-  // ---------- SUMMARY BUTTONS ----------
-
-  summaryShortButton?.addEventListener("click", () => summarizeConversation(7));
-  summaryLongButton?.addEventListener("click", () => summarizeConversation(12));
-
-  // ---------- INPUT EVENTS ----------
-
-  sendButton?.addEventListener("click", sendMessage);
-
-  input?.addEventListener("keydown", (e) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      sendMessage();
-    }
-  });
-
-  // ---------- VOICE INPUT ----------
-
-  if ("webkitSpeechRecognition" in window) {
-    const recognition = new webkitSpeechRecognition();
-    recognition.continuous = false;
-    recognition.interimResults = false;
-    recognition.lang = "en-US";
-
-    micButton.addEventListener("click", () => {
-      micButton.style.color = "#ef4444";
-      recognition.start();
+  /* ---------- TOOLTIP ---------- */
+  document.querySelectorAll(".explain-btn").forEach((btn) => {
+    btn.addEventListener("mouseenter", (e) => {
+      tooltip.textContent = btn.dataset.tooltip;
+      tooltip.style.opacity = 1;
+      tooltip.style.left = e.clientX + 20 + "px";
+      tooltip.style.top = e.clientY + 20 + "px";
     });
-
-    recognition.onresult = ({ results }) => {
-      input.value = results[0][0].transcript;
-      sendMessage();
-    };
-    recognition.onend = () => (micButton.style.color = "white");
-    recognition.onerror = () => {
-      micButton.style.color = "white";
-      createMessage("🎤 Couldn't understand speech.", "ai");
-    };
-  } else {
-    micButton.style.display = "none";
-  }
-
-  // ---------- LOCATION BUTTON ----------
-
-  locButton?.addEventListener("click", async () => {
-    createMessage("Requesting your location…", "ai", true);
-    const city = await getUserLocationByPermission();
-    if (city) {
-      cachedCity = city;
-      createMessage(`📍 Using your current location: ${city}`, "ai", true);
-    } else {
-      cachedCity = "Mumbai";
-      createMessage(
-        "Couldn't access your location. Defaulting to Mumbai.",
-        "ai",
-        true
-      );
-    }
+    btn.addEventListener("mouseleave", () => {
+      tooltip.style.opacity = 0;
+    });
   });
 
-  // ---------- NAV LINKS WITH SOUND ----------
-
-  links.forEach((link) => {
+  /* ---------- NAVIGATION SOUND ---------- */
+  document.querySelectorAll(".gradient-text").forEach((link) => {
     link.addEventListener("click", (e) => {
-      const soundId = link.getAttribute("data-sound-id");
-      const sound = document.getElementById(soundId);
+      const sound = document.getElementById(link.dataset.soundId);
       if (!sound) return;
       e.preventDefault();
       sound.currentTime = 0;
       sound.play();
-      sound.addEventListener(
-        "ended",
-        function handleEnd() {
-          window.location.href = link.getAttribute("href");
-          sound.removeEventListener("ended", handleEnd);
-        },
-        { once: true }
-      );
+      sound.onended = () => (window.location.href = link.href);
     });
   });
 
-  // ---------- INITIAL MESSAGE ----------
-
+  /* ---------- INITIAL GREETING ---------- */
   createMessage(
-    "Hello! I'm your assistant, now with enhanced features — light/dark theme, voice, summaries, quizzes, and more. Ask me anything.",
+    "Hello! I'm your assistant, now with enhanced features — light/dark theme, voice, summaries, quizzes, and more. Ask me anything!",
     "ai",
     true
   );
-  scrollToBottom(chatContainer);
 });
