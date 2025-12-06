@@ -1,69 +1,31 @@
-// ------------- CONFIG -------------
-// Put your actual keys here.
-// Example:
-// "AIzaSyDJ3NjMH00Av97ji39Y2V-NPgU-wtrK-kk",
-// const GEMINI_API_KEYS = [
-//   "YOUR_GEMINI_KEY_1_HERE",
-//   "YOUR_GEMINI_KEY_2_HERE",
-//   "YOUR_GEMINI_KEY_3_HERE"
-// ].filter(Boolean);
-const GEMINI_SALT = "LumixCore2025";
-
-const GEMINI_KEY_CHUNKS = [
-  "tpAGNhOz0OL",
-  "WfFp/fXxFL",
-  "B9BdAUbVg",
-  "W4YBhd5HVle",
-  "DTwXCCs6Kzh"
-];
-
-const GEMINI_KEY_ORDER = [4, 1, 2, 0, 3];
-
-function decodeGeminiKey() {
-  const base64 = GEMINI_KEY_ORDER.map(i => GEMINI_KEY_CHUNKS[i]).join("");
-  const obf = atob(base64);
-  let out = "";
-  for (let i = 0; i < obf.length; i++) {
-    out += String.fromCharCode(
-      obf.charCodeAt(i) ^ GEMINI_SALT.charCodeAt(i % GEMINI_SALT.length)
-    );
-  }
-  return out;
-}
-
-const GEMINI_API_KEYS = [decodeGeminiKey()];
-const GEMINI_API_KEY = GEMINI_API_KEYS[0];
-
-
-
-// Weather API key (you already had this one)
-const WEATHER_API_KEY = "86af92bb29ea4c278df101649250409";
-
-const CREATOR_NAME = "Pavit";
-const AI_NAME = "Lumix Core";
-
-// Models we try for Gemini
-const GEMINI_MODELS = ["gemini-1.5-flash", "gemini-1.5-pro"];
-
-// ------------- SMALL HELPERS -------------
-
 function escapeHtml(str) {
+  if (!str) return "";
   return str
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;");
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
 }
 
-function scrollToBottom(container) {
-  container.scrollTop = container.scrollHeight;
-}
+// ---------- Gemini API ----------
 
-// ------------- GEMINI API -------------
+
+const GEMINI_API_KEYS = [
+  "AIzaSyDJ3NjMH00Av97ji39Y2V-NPgU-wtrK-kk",
+  "AIzaSyCnnZ-2TwJbRoMemqfrnicWIy3BbS67zjI",
+  "AIzaSyD73fVeCDIhSYZxmH6elyGjmenTCwYzGnc"
+];
+
+const GEMINI_API_KEY =
+  GEMINI_API_KEYS[Math.floor(Math.random() * GEMINI_API_KEYS.length)];
 
 async function callGeminiAPI(content, systemPrompt = "You are a helpful assistant.") {
-  if (!GEMINI_API_KEYS.length) {
-    throw new Error("No Gemini API keys configured.");
-  }
+  const models = [
+    "gemini-1.5-flash-latest",
+    "gemini-1.5-pro-latest",
+    "gemini-2.0-flash-exp"
+  ];
 
   const payload = {
     contents: [
@@ -76,51 +38,47 @@ async function callGeminiAPI(content, systemPrompt = "You are a helpful assistan
 
   let lastError = "";
 
-  // Try every key and every model until one works
-  for (const key of GEMINI_API_KEYS) {
-    for (const model of GEMINI_MODELS) {
-      try {
-        const url = `https://generativelanguage.googleapis.com/v1/models/${model}:generateContent?key=${key}`;
+  for (const model of models) {
+    try {
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_API_KEY}`;
 
-        const res = await fetch(url, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload)
-        });
+      const res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
 
-        if (!res.ok) {
-          const err = await res.json().catch(() => ({}));
-          lastError = err.error?.message || `HTTP ${res.status}`;
-          console.warn("Gemini error", { model, keyLast4: key.slice(-4), lastError });
-          continue;
-        }
+      const data = await res.json();
 
-        const json = await res.json();
-
-        const text =
-          json?.candidates?.[0]?.content?.parts?.[0]?.text ||
-          json?.candidates?.[0]?.output ||
-          "";
-
-        if (!text) {
-          lastError = "Empty response from Gemini.";
-          continue;
-        }
-
-        return { text };
-      } catch (e) {
-        lastError = e.message;
-        console.error("Gemini fetch error", e);
+      if (!res.ok) {
+        lastError = data.error?.message || `HTTP ${res.status}`;
+        console.warn(`Model error: ${model}`, lastError);
+        continue;
       }
+
+      const text =
+        data?.candidates?.[0]?.content?.parts?.[0]?.text ||
+        data?.candidates?.[0]?.output ||
+        "";
+
+      if (text) return { text };
+      lastError = "Empty response received.";
+
+    } catch (err) {
+      console.error("Fetch error:", err);
+      lastError = err.message;
     }
   }
 
   throw new Error(`Gemini API failed. Last error: ${lastError}`);
 }
 
-async function callGenerativeAPI(content, systemPrompt) {
+
+// keep using callGenerativeAPI as before:
+async function callGenerativeAPI(content, systemPrompt = "You are a helpful assistant.") {
   return callGeminiAPI(content, systemPrompt);
 }
+
 
 // ------------- WEATHER -------------
 
@@ -146,7 +104,7 @@ async function getWeatherData(city) {
       humidity: w.current.humidity,
       windSpeed: Math.round((w.current.wind_kph / 3.6) * 10) / 10,
       feelsLike: Math.round(w.current.feelslike_c),
-      source: "WeatherAPI"
+      source: "WeatherAPI",
     };
   } catch (e) {
     console.error("Weather error", e);
@@ -182,14 +140,22 @@ document.addEventListener("DOMContentLoaded", () => {
   // DOM refs
   const input = document.querySelector('[data-testid="chat-input"]');
   const sendButton = document.querySelector('[data-testid="send-button"]');
-  const chatContainer = document.querySelector('[data-testid="chat-container"]');
+  const chatContainer = document.querySelector(
+    '[data-testid="chat-container"]'
+  );
   const micButton = document.querySelector('[data-testid="mic-button"]');
-  const summaryShortButton = document.querySelector('[data-testid="summary-short"]');
-  const summaryLongButton = document.querySelector('[data-testid="summary-long"]');
+  const summaryShortButton = document.querySelector(
+    '[data-testid="summary-short"]'
+  );
+  const summaryLongButton = document.querySelector(
+    '[data-testid="summary-long"]'
+  );
   const locButton = document.querySelector('[data-testid="loc-button"]');
   const avatarPanelToggle = document.getElementById("avatar-panel-toggle");
   const quizGeneratorButton = document.getElementById("quiz-generator");
-  const contextSuggestionsContainer = document.getElementById("context-suggestions");
+  const contextSuggestionsContainer = document.getElementById(
+    "context-suggestions"
+  );
   const tooltip = document.getElementById("tooltip");
   const themeToggleLoading = document.getElementById("themeToggleLoading");
   const themeToggleHeader = document.getElementById("themeToggleHeader");
@@ -211,7 +177,7 @@ document.addEventListener("DOMContentLoaded", () => {
       "Calibrating neural pathways…",
       "Styling the UI pixels…",
       "Connecting to the Gemini engine…",
-      "Almost ready!"
+      "Almost ready!",
     ];
     let idx = 0;
     loadingTextEl.textContent = phrases[0];
@@ -260,8 +226,10 @@ document.addEventListener("DOMContentLoaded", () => {
     updateThemeUI();
   }
 
-  if (themeToggleLoading) themeToggleLoading.addEventListener("click", toggleTheme);
-  if (themeToggleHeader) themeToggleHeader.addEventListener("click", toggleTheme);
+  if (themeToggleLoading)
+    themeToggleLoading.addEventListener("click", toggleTheme);
+  if (themeToggleHeader)
+    themeToggleHeader.addEventListener("click", toggleTheme);
   updateThemeUI();
 
   // ---------- MESSAGE RENDERING ----------
@@ -272,7 +240,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const timestamp = new Date().toLocaleTimeString([], {
       hour: "2-digit",
-      minute: "2-digit"
+      minute: "2-digit",
     });
 
     const isLong = content.length > 600;
@@ -286,9 +254,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const finalContent = isMarkdown ? wrapped : safeText;
 
     msg.innerHTML = `
-      <div class="font-bold mb-1">${
-        sender === "ai" ? AI_NAME : "You"
-      }</div>
+      <div class="font-bold mb-1">${sender === "ai" ? AI_NAME : "You"}</div>
       <div class="message-content">${finalContent}</div>
       <div class="text-xs opacity-60 mt-1">${timestamp}</div>
     `;
@@ -299,8 +265,8 @@ document.addEventListener("DOMContentLoaded", () => {
       renderMathInElement(msg, {
         delimiters: [
           { left: "$$", right: "$$", display: true },
-          { left: "$", right: "$", display: false }
-        ]
+          { left: "$", right: "$", display: false },
+        ],
       });
     }
     scrollToBottom(chatContainer);
@@ -323,7 +289,9 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function hideTyping() {
-    const indicator = document.querySelector('[data-testid="typing-indicator"]');
+    const indicator = document.querySelector(
+      '[data-testid="typing-indicator"]'
+    );
     if (indicator) indicator.remove();
   }
 
@@ -333,7 +301,8 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!chatHistoryLog) return;
     const lastItems = chatHistory.slice(-6);
     if (!lastItems.length) {
-      chatHistoryLog.innerHTML = "<p>Your conversation history will appear here.</p>";
+      chatHistoryLog.innerHTML =
+        "<p>Your conversation history will appear here.</p>";
       return;
     }
 
@@ -341,7 +310,9 @@ document.addEventListener("DOMContentLoaded", () => {
       .map((m) => {
         const who = m.role === "user" ? "You" : AI_NAME;
         const text = escapeHtml(m.parts[0]?.text || "").slice(0, 120);
-        return `<p><strong>${who}:</strong> ${text}${text.length === 120 ? "…" : ""}</p>`;
+        return `<p><strong>${who}:</strong> ${text}${
+          text.length === 120 ? "…" : ""
+        }</p>`;
       })
       .join("");
   }
@@ -375,7 +346,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const replies = [
         `I was created by ${CREATOR_NAME}, the mind behind this assistant.`,
         `I was handcrafted by ${CREATOR_NAME} — designer, developer, and all-around genius.`,
-        `Call me your digital sidekick — created by ${CREATOR_NAME} with vision and code.`
+        `Call me your digital sidekick — created by ${CREATOR_NAME} with vision and code.`,
       ];
       return replies[Math.floor(Math.random() * replies.length)];
     }
@@ -392,26 +363,32 @@ document.addEventListener("DOMContentLoaded", () => {
       return `"LumixCore" is the smart center of your assistant—a blend of bright design and clear reasoning. It’s more than a UI; it’s the base, the brain, and the heart of your AI.`;
     }
 
-    if (/give a (tagline|good tagline) for your (name|name lumixcore)?/i.test(lower)) {
+    if (
+      /give a (tagline|good tagline) for your (name|name lumixcore)?/i.test(
+        lower
+      )
+    ) {
       const replies = [
         "“LumixCore: The brilliance behind every reply.”",
         "“Powered by clarity. Driven by logic.”",
         "“LumixCore — where design meets depth.”",
-        `“Your assistant’s soul, styled by ${CREATOR_NAME}.”`
+        `“Your assistant’s soul, styled by ${CREATOR_NAME}.”`,
       ];
       return replies[Math.floor(Math.random() * replies.length)];
     }
 
     // Weather query?
-    const isWeatherQuery = /weather|temperature|forecast|climate|humid|rain|snow|wind|sunny|cloudy/i.test(
-      lower
-    );
+    const isWeatherQuery =
+      /weather|temperature|forecast|climate|humid|rain|snow|wind|sunny|cloudy/i.test(
+        lower
+      );
     if (isWeatherQuery) {
       queryContext = "weather";
 
       const cityMatch =
-        query.match(/weather.*?(?:in|for|at)\s+([a-zA-Z\s]+?)(?:\s|$|\?|\.)/i) ||
-        query.match(/([a-zA-Z\s]+?)\s+weather/i);
+        query.match(
+          /weather.*?(?:in|for|at)\s+([a-zA-Z\s]+?)(?:\s|$|\?|\.)/i
+        ) || query.match(/([a-zA-Z\s]+?)\s+weather/i);
 
       let city = cityMatch ? cityMatch[1].trim() : null;
       if (!city) city = await getUserLocationByPermission();
@@ -427,7 +404,8 @@ document.addEventListener("DOMContentLoaded", () => {
         const preface = defaulted
           ? "📍 Couldn't access your location. Using Mumbai by default.\n\n"
           : "";
-        reply = `${preface}**Current Weather in ${weatherData.city}, ${weatherData.country}:**\n\n` +
+        reply =
+          `${preface}**Current Weather in ${weatherData.city}, ${weatherData.country}:**\n\n` +
           `🌡️ **Temperature:** ${weatherData.temperature}°C (feels like ${weatherData.feelsLike}°C)  \n` +
           `☁️ **Condition:** ${
             weatherData.description.charAt(0).toUpperCase() +
@@ -444,11 +422,18 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     // Coding queries: flag context
-    if (lower.includes("code") || lower.includes("javascript") || lower.includes("python")) {
+    if (
+      lower.includes("code") ||
+      lower.includes("javascript") ||
+      lower.includes("python")
+    ) {
       queryContext = "coding";
     }
 
-    const result = await callGenerativeAPI(query, "You are a helpful assistant.");
+    const result = await callGenerativeAPI(
+      query,
+      "You are a helpful assistant."
+    );
     reply = result.text;
     updateContextSuggestions(queryContext, reply);
     return reply;
@@ -464,19 +449,19 @@ document.addEventListener("DOMContentLoaded", () => {
       suggestions = [
         "What should I wear?",
         "Is it a good day for a walk?",
-        "How does this compare to yesterday?"
+        "How does this compare to yesterday?",
       ];
     } else if (context === "coding") {
       suggestions = [
         "Can you explain this code?",
         "How can I optimize this?",
-        "Add comments to the code."
+        "Add comments to the code.",
       ];
     } else if (reply.length > 300) {
       suggestions = [
         "Explain this like I'm five. (from our previous conversation)",
         "Give me 3 key takeaways. (from our previous conversation)",
-        "Translate this to Spanish. (from our previous conversation)"
+        "Translate this to Spanish. (from our previous conversation)",
       ];
     }
 
@@ -546,7 +531,11 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
     const prompt = `Summarize in **${lines} lines** with bullet points and bold key terms:\n\n---\n\n${last.parts[0].text}`;
-    sendSystemQuery(prompt, "You are a summarization expert.", `Summarize the last response in ${lines} lines.`);
+    sendSystemQuery(
+      prompt,
+      "You are a summarization expert.",
+      `Summarize the last response in ${lines} lines.`
+    );
   }
 
   // ---------- QUIZ GENERATOR ----------
@@ -554,11 +543,19 @@ document.addEventListener("DOMContentLoaded", () => {
   quizGeneratorButton?.addEventListener("click", () => {
     const last = chatHistory.filter((m) => m.role === "model").pop();
     if (!last) {
-      createMessage("There's no conversation to create a quiz from yet.", "ai", true);
+      createMessage(
+        "There's no conversation to create a quiz from yet.",
+        "ai",
+        true
+      );
       return;
     }
     const quizQuery = `Based on the following text, create a multiple-choice quiz with 3 questions. Provide the correct answer after the options for each question.\n\n---\n\n${last.parts[0].text}`;
-    sendSystemQuery(quizQuery, "You are a quiz generation expert.", "Create a quiz from our conversation.");
+    sendSystemQuery(
+      quizQuery,
+      "You are a quiz generation expert.",
+      "Create a quiz from our conversation."
+    );
   });
 
   // ---------- TOOLTIP SETUP ----------
@@ -637,7 +634,11 @@ document.addEventListener("DOMContentLoaded", () => {
       createMessage(`📍 Using your current location: ${city}`, "ai", true);
     } else {
       cachedCity = "Mumbai";
-      createMessage("Couldn't access your location. Defaulting to Mumbai.", "ai", true);
+      createMessage(
+        "Couldn't access your location. Defaulting to Mumbai.",
+        "ai",
+        true
+      );
     }
   });
 
