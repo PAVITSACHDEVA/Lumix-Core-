@@ -945,9 +945,12 @@
    (XOR + Base64 + Chunk Shuffle)
 ---------------------------- */
 
-const GEMINI_SALT = "LumixCore2025";   // Keep or change — must match encryption salt below
+/* ---------------------------
+   STRONGER OBFUSCATED GEMINI API KEY
+---------------------------- */
 
-// These chunks contain XOR+Base64 encrypted key, shuffled:
+const GEMINI_SALT = "LumixCore2025";
+
 const GEMINI_KEY_CHUNKS = [
   "tpAGNhOz0OL",
   "WfFp/fXxFL",
@@ -956,29 +959,24 @@ const GEMINI_KEY_CHUNKS = [
   "DTwXCCs6Kzh"
 ];
 
-// How to reassemble the chunks back into correct order:
 const GEMINI_KEY_ORDER = [4, 1, 2, 0, 3];
 
 function decodeGeminiKey() {
-  // Reorder chunks back to original order
   const base64 = GEMINI_KEY_ORDER.map(i => GEMINI_KEY_CHUNKS[i]).join("");
 
-  // Decode Base64
   const obf = atob(base64);
 
-  // XOR-decrypt using salt
   let out = "";
   for (let i = 0; i < obf.length; i++) {
-    const c = obf.charCodeAt(i) ^ GEMINI_SALT.charCodeAt(i % GEMINI_SALT.length);
-    out += String.fromCharCode(c);
+    out += String.fromCharCode(
+      obf.charCodeAt(i) ^ GEMINI_SALT.charCodeAt(i % GEMINI_SALT.length)
+    );
   }
   return out;
 }
 
-// Same structure your existing system uses:
 const GEMINI_API_KEYS = [decodeGeminiKey()];
-const GEMINI_API_KEY =
-  GEMINI_API_KEYS[Math.floor(Math.random() * GEMINI_API_KEYS.length)];
+const GEMINI_API_KEY = GEMINI_API_KEYS[0];
 
 
     // ——— Random Key Picker ————————————————————————————————
@@ -1250,33 +1248,6 @@ async function callGeminiAPI(
   throw new Error(`Gemini API failed. Last error: ${lastError}`);
 }
 
-            const res = await fetch(url, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(payload)
-            });
-
-            if (!res.ok) {
-                const err = await res.json().catch(() => ({}));
-                lastError = err.error?.message || `HTTP ${res.status}`;
-                continue;
-            }
-
-            const json = await res.json();
-
-            const text =
-                json?.candidates?.[0]?.content?.parts?.[0]?.text ||
-                json?.candidates?.[0]?.output ||
-                "";
-
-            return { text };
-        } catch (e) {
-            lastError = e.message;
-        }
-    }
-
-    throw new Error(`Gemini API failed. Last error: ${lastError}`);
-}
 
 
         async function callDeepSeekAPI(content, systemPrompt = "You are a helpful assistant.") {
