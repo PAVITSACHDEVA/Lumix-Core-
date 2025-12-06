@@ -940,12 +940,46 @@
         // ——— Keys ————————————————————————————————————————————
         // Gemini API Key from Google AI Studio.
          // ——— API Keys ————————————————————————————————————————————
-    const GEMINI_API_KEYS = [
-        // "AIzaSyA1...", // Replace with your actual keys
-        // "AIzaSyB2...",
-        // "AIzaSyC3...",
-        "AIzaSyDJ3NjMH00Av97ji39Y2V-NPgU-wtrK-kk"
-    ];
+/* ---------------------------
+   STRONGER OBFUSCATED GEMINI API KEY
+   (XOR + Base64 + Chunk Shuffle)
+---------------------------- */
+
+const GEMINI_SALT = "LumixCore2025";   // Keep or change — must match encryption salt below
+
+// These chunks contain XOR+Base64 encrypted key, shuffled:
+const GEMINI_KEY_CHUNKS = [
+  "tpAGNhOz0OL",
+  "WfFp/fXxFL",
+  "B9BdAUbVg",
+  "W4YBhd5HVle",
+  "DTwXCCs6Kzh"
+];
+
+// How to reassemble the chunks back into correct order:
+const GEMINI_KEY_ORDER = [4, 1, 2, 0, 3];
+
+function decodeGeminiKey() {
+  // Reorder chunks back to original order
+  const base64 = GEMINI_KEY_ORDER.map(i => GEMINI_KEY_CHUNKS[i]).join("");
+
+  // Decode Base64
+  const obf = atob(base64);
+
+  // XOR-decrypt using salt
+  let out = "";
+  for (let i = 0; i < obf.length; i++) {
+    const c = obf.charCodeAt(i) ^ GEMINI_SALT.charCodeAt(i % GEMINI_SALT.length);
+    out += String.fromCharCode(c);
+  }
+  return out;
+}
+
+// Same structure your existing system uses:
+const GEMINI_API_KEYS = [decodeGeminiKey()];
+const GEMINI_API_KEY =
+  GEMINI_API_KEYS[Math.floor(Math.random() * GEMINI_API_KEYS.length)];
+
 
     // ——— Random Key Picker ————————————————————————————————
     const GEMINI_API_KEY = GEMINI_API_KEYS[Math.floor(Math.random() * GEMINI_API_KEYS.length)];
