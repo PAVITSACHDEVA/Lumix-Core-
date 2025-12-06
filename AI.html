@@ -950,15 +950,14 @@
     // ——— Random Key Picker ————————————————————————————————
     const GEMINI_API_KEY = GEMINI_API_KEYS[Math.floor(Math.random() * GEMINI_API_KEYS.length)];
         // IMPORTANT: Replace "YOUR_DEEPSEEK_API_KEY" with your actual DeepSeek API key.
-        const DEEPSEEK_API_KEY = "YOUR_DEEPSEEK_API_KEY"; // Get one from DeepSeek's platform.
+       // Get one from DeepSeek's platform.
         
         const WEATHER_API_KEY = "86af92bb29ea4c278df101649250409";
 
         // List of available AI providers. The script will randomly pick one that is enabled.
         const API_PROVIDERS = [
             { name: 'gemini', key: GEMINI_API_KEY, enabled: true },
-            // DeepSeek is disabled because its API does not support direct calls from the browser (CORS issue).
-            { name: 'deepseek', key: DEEPSEEK_API_KEY, enabled: false }
+        
         ];
 
         // ——— DOM ——————————————————————————————————————————————
