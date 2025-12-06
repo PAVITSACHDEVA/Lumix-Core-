@@ -1161,25 +1161,60 @@
 
             return reply;
         }
-async function callGeminiAPI(content, systemPrompt = "You are a helpful assistant.") {
-    const modelsToTry = [
-        "gemini-2.0-flash",
-        "gemini-2.0-flash-001",
-        "gemini-2.0-pro",
-        "gemini-2.0-pro-001"
-    ];
+async function callGeminiAPI(
+  content,
+  systemPrompt = "You are a helpful assistant."
+) {
+  // Use models that actually exist on the v1 endpoint
+  const modelsToTry = [
+    "gemini-1.5-flash",
+    "gemini-1.5-pro"
+  ];
 
-    const payload = {
-        contents: [
-            { role: "user", parts: [{ text: `${systemPrompt}\n\n${content}` }] }
-        ]
-    };
+  const payload = {
+    contents: [
+      {
+        role: "user",
+        parts: [{ text: `${systemPrompt}\n\n${content}` }]
+      }
+    ]
+  };
 
-    let lastError = "";
+  let lastError = "";
 
-    for (const model of modelsToTry) {
-        try {
-            const url = `https://generativelanguage.googleapis.com/v1/models/${model}:generateContent?key=${GEMINI_API_KEY}`;
+  for (const model of modelsToTry) {
+    try {
+      const url = `https://generativelanguage.googleapis.com/v1/models/${model}:generateContent?key=${GEMINI_API_KEY}`;
+
+      const res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        lastError = err.error?.message || `HTTP ${res.status}`;
+        console.warn("Gemini error for model", model, lastError);
+        continue;
+      }
+
+      const json = await res.json();
+
+      const text =
+        json?.candidates?.[0]?.content?.parts?.[0]?.text ||
+        json?.candidates?.[0]?.output ||
+        "";
+
+      return { text };
+    } catch (e) {
+      lastError = e.message;
+      console.error("Gemini fetch error for model", model, e);
+    }
+  }
+
+  throw new Error(`Gemini API failed. Last error: ${lastError}`);
+}
 
             const res = await fetch(url, {
                 method: "POST",
