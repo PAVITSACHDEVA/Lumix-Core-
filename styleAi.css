@@ -741,7 +741,7 @@ body.light-mode .lumix-btn:hover {
   }
 }
 
-/* Mobile: slide the chat instead of shrinking */
+/* Mobile:.. slide the chat instead of shrinking */
 
 @media (max-width: 768px) {
   body.panel-open #app-container {
