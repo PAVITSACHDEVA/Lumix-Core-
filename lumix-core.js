@@ -1,11 +1,10 @@
-function escapeHtml(str) {
-  if (!str) return "";
-  return str
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
+const AI_NAME = "Lumix Core";
+
+function escapeHtml(text) {
+    return text
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;");
 }
 
 // ---------- Gemini API ----------
@@ -19,60 +18,47 @@ const GEMINI_API_KEYS = [
 
 const GEMINI_API_KEY =
   GEMINI_API_KEYS[Math.floor(Math.random() * GEMINI_API_KEYS.length)];
-
 async function callGeminiAPI(content, systemPrompt = "You are a helpful assistant.") {
-  const models = [
-    "gemini-1.5-flash-latest",
-    "gemini-1.5-pro-latest",
-    "gemini-2.0-flash-exp"
-  ];
+    const models = [
+        "gemini-1.5-flash",
+        "gemini-1.5-pro"
+    ];
 
-  const payload = {
-    contents: [
-      {
-        role: "user",
-        parts: [{ text: `${systemPrompt}\n\n${content}` }]
-      }
-    ]
-  };
+    const payload = {
+        contents: [
+            {
+                role: "user",
+                parts: [{ text: `${systemPrompt}\n\n${content}` }]
+            }
+        ]
+    };
 
-  let lastError = "";
+    for (const model of models) {
+        try {
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_API_KEY}`;
 
-  for (const model of models) {
-    try {
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_API_KEY}`;
+            const res = await fetch(url, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload)
+            });
 
-      const res = await fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
-      });
+            const json = await res.json();
+            if (!res.ok) continue;
 
-      const data = await res.json();
+            return {
+                text:
+                    json?.candidates?.[0]?.content?.parts?.[0]?.text ||
+                    ""
+            };
 
-      if (!res.ok) {
-        lastError = data.error?.message || `HTTP ${res.status}`;
-        console.warn(`Model error: ${model}`, lastError);
-        continue;
-      }
-
-      const text =
-        data?.candidates?.[0]?.content?.parts?.[0]?.text ||
-        data?.candidates?.[0]?.output ||
-        "";
-
-      if (text) return { text };
-      lastError = "Empty response received.";
-
-    } catch (err) {
-      console.error("Fetch error:", err);
-      lastError = err.message;
+        } catch (err) {
+            console.log("Gemini model failed:", model, err);
+        }
     }
-  }
 
-  throw new Error(`Gemini API failed. Last error: ${lastError}`);
+    throw new Error("Gemini API failed. All models unavailable.");
 }
-
 
 // keep using callGenerativeAPI as before:
 async function callGenerativeAPI(content, systemPrompt = "You are a helpful assistant.") {
