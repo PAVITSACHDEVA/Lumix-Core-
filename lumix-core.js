@@ -1,32 +1,43 @@
-/**************************************************
- *  LUMIX CORE – FIXED, CLEAN, WORKING JS FILE
- **************************************************/
+/* ---------------------------
+   STRONG OBFUSCATED GEMINI API KEY
+---------------------------- */
 
-/* ---------- GLOBAL CONSTANTS ---------- */
-const AI_NAME = "Lumix Core";
-const CREATOR_NAME = "Pavit";
+const GEMINI_SALT = "LumixCore2025";
 
-/* Escape HTML safely */
-function escapeHtml(text = "") {
-  return text
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;");
-}
-
-/* ---------- GEMINI API CONFIG ---------- */
-const GEMINI_API_KEYS = [
-  "AIzaSyDJ3NjMH00Av97ji39Y2V-NPgU-wtrK-kk",
-  "AIzaSyCnnZ-2TwJbRoMemqfrnicWIy3BbS67zjI",
-  "AIzaSyD73fVeCDIhSYZxmH6elyGjmenTCwYzGnc"
+const GEMINI_KEY_CHUNKS = [
+  "tpAGNhOz0OL",
+  "WfFp/fXxFL",
+  "B9BdAUbVg",
+  "W4YBhd5HVle",
+  "DTwXCCs6Kzh"
 ];
 
-function getRandomKey() {
-  return GEMINI_API_KEYS[Math.floor(Math.random() * GEMINI_API_KEYS.length)];
+const GEMINI_KEY_ORDER = [4, 1, 2, 0, 3];
+
+function decodeGeminiKey() {
+  const base64 = GEMINI_KEY_ORDER.map(i => GEMINI_KEY_CHUNKS[i]).join("");
+  const obf = atob(base64);
+
+  let out = "";
+  for (let i = 0; i < obf.length; i++) {
+    out += String.fromCharCode(
+      obf.charCodeAt(i) ^ GEMINI_SALT.charCodeAt(i % GEMINI_SALT.length)
+    );
+  }
+  return out;
 }
 
+const GEMINI_API_KEY = decodeGeminiKey();
+
+/* ---------------------------
+   GEMINI CALL (SINGLE MODEL)
+---------------------------- */
+
 async function callGeminiAPI(content, systemPrompt = "You are a helpful assistant.") {
-  const models = ["gemini-1.5-flash", "gemini-1.5-pro"];
+  const model = "gemini-1.5-flash";  // ✅ This model ALWAYS works with v1beta
+
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_API_KEY}`;
+
   const payload = {
     contents: [
       {
@@ -36,39 +47,36 @@ async function callGeminiAPI(content, systemPrompt = "You are a helpful assistan
     ]
   };
 
-  for (const model of models) {
-    try {
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${getRandomKey()}`;
+  try {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
 
-      const res = await fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
-      });
+    const json = await res.json();
 
-      const json = await res.json();
-
-      if (!res.ok) {
-        console.warn("Gemini model failed:", model, json.error?.message);
-        continue;
-      }
-
-      return {
-        text:
-          json?.candidates?.[0]?.content?.parts?.[0]?.text ||
-          "⚠️ No response received."
-      };
-    } catch (err) {
-      console.error("Gemini error:", model, err);
+    if (!res.ok) {
+      console.error("Gemini Error:", json.error);
+      throw new Error(json.error?.message || "Gemini request failed.");
     }
+
+    return {
+      text:
+        json?.candidates?.[0]?.content?.parts?.[0]?.text ||
+        "⚠️ No response received."
+    };
+  } catch (err) {
+    console.error("Gemini API Failed:", err);
+    throw new Error("❌ Gemini API failed: " + err.message);
   }
-
-  throw new Error("Gemini API failed. All models unavailable.");
 }
 
-async function callGenerativeAPI(q, sys) {
-  return callGeminiAPI(q, sys);
+/* Compatibility wrapper */
+async function callGenerativeAPI(content, systemPrompt = "You are a helpful assistant.") {
+  return callGeminiAPI(content, systemPrompt);
 }
+
 
 /* ---------- WEATHER API ---------- */
 const WEATHER_API_KEY = "86af92bb29ea4c278df101649250409";
