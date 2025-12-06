@@ -1,15 +1,12 @@
-// =========================
-// Lumix Core - Main Script
-// =========================
+/* =====================================================================================
+      LUMIX CORE — FRONTEND AI ENGINE (SAFE BACKEND MODE)
+   ===================================================================================== */
 
-// --- Constants ---
+/* --- Configuration --- */
 const AI_NAME = "Lumix Core";
-const CREATOR_NAME = "Pavit";
+const BACKEND_URL = "https://lumix-core.onrender.com/api/gemini"; // SAFE – no API key exposed
 
-// Weather API key (optional; if invalid, you just get a friendly error)
-const WEATHER_API_KEY = "86af92bb29ea4c278df101649250409";
-
-// --- Small utility: escape HTML ---
+/* --- Sanitization Helpers --- */
 function escapeHtml(text) {
   return text
     .replace(/&/g, "&amp;")
@@ -17,633 +14,124 @@ function escapeHtml(text) {
     .replace(/>/g, "&gt;");
 }
 
-/* ---------------------------
-   STRONGER OBFUSCATED GEMINI API KEY
----------------------------- */
-const GEMINI_SALT = "LumixCore2025";
+/* =====================================================================================
+      BACKEND COMMUNICATION
+   ===================================================================================== */
 
-const GEMINI_KEY_CHUNKS = [
-  "tpAGNhOz0OL",
-  "WfFp/fXxFL",
-  "B9BdAUbVg",
-  "W4YBhd5HVle",
-  "DTwXCCs6Kzh"
-];
-
-const GEMINI_KEY_ORDER = [4, 1, 2, 0, 3];
-
-function decodeGeminiKey() {
-  const base64 = GEMINI_KEY_ORDER.map(i => GEMINI_KEY_CHUNKS[i]).join("");
-
-  const obf = atob(base64);
-
-  let out = "";
-  for (let i = 0; i < obf.length; i++) {
-    out += String.fromCharCode(
-      obf.charCodeAt(i) ^ GEMINI_SALT.charCodeAt(i % GEMINI_SALT.length)
-    );
-  }
-  return out;
-}
-
-const GEMINI_API_KEYS = [decodeGeminiKey()];
-const GEMINI_API_KEY = GEMINI_API_KEYS[0];
-
-// We’ll prefer your newest model: gemini-2.5-flash
-const GEMINI_MODELS = [
-  "models/gemini-2.5-flash"
-  // You *could* add fallbacks, e.g.:
-  // "models/gemini-2.0-flash-001",
-  // "models/gemini-2.0-flash-lite-001"
-];
-
-// ---------- Gemini API (v1) ----------
-async function callGeminiAPI(
-  content,
-  systemPrompt = "You are a helpful assistant."
-) {
-  // v1 endpoint (NOT v1beta)
-  const payload = {
-    contents: [
-      {
-        role: "user",
-        parts: [
-          {
-            text: `${systemPrompt}\n\n${content}`
-          }
-        ]
-      }
-    ]
-  };
-
-  let lastError = "Unknown error";
-
-  for (const model of GEMINI_MODELS) {
-    try {
-      const url = `https://generativelanguage.googleapis.com/v1/${model}:generateContent?key=${GEMINI_API_KEY}`;
-
-      const res = await fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
-      });
-
-      const json = await res.json().catch(() => ({}));
-
-      if (!res.ok) {
-        console.error("Gemini API error raw:", json);
-        lastError =
-          json?.error?.message ||
-          `HTTP ${res.status} ${res.statusText} for model ${model}`;
-        continue;
-      }
-
-      const text =
-        json?.candidates?.[0]?.content?.parts?.[0]?.text ||
-        json?.candidates?.[0]?.output ||
-        "";
-
-      if (!text) {
-        lastError = "Empty response from Gemini.";
-        continue;
-      }
-
-      return { text };
-    } catch (e) {
-      console.error("Gemini fetch error for model", model, e);
-      lastError = e.message;
-    }
-  }
-
-  throw new Error(`Gemini API error: ${lastError}`);
-}
-
-// keep using callGenerativeAPI as before:
-async function callGenerativeAPI(content, systemPrompt = "You are a helpful assistant.") {
-  return callGeminiAPI(content, systemPrompt);
-}
-
-// ------------- WEATHER -------------
-
-async function getWeatherData(city) {
-  if (!WEATHER_API_KEY) return "NO_API_KEYS";
+/**
+ * Sends prompt to your backend at /api/gemini
+ * Backend handles: API key, Gemini model, JSON correctness, errors.
+ */
+async function callGenerativeAPI(prompt) {
   try {
-    const res = await fetch(
-      `https://api.weatherapi.com/v1/current.json?key=${WEATHER_API_KEY}&q=${encodeURIComponent(
-        city
-      )}&aqi=no`
-    );
+    const res = await fetch(BACKEND_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ prompt })
+    });
+
+    const data = await res.json();
+
     if (!res.ok) {
-      if (res.status === 401 || res.status === 403) return "API_KEY_INVALID";
-      if (res.status === 400) return "CITY_NOT_FOUND";
-      return null;
+      console.error("Backend error:", data);
+      return { text: "❌ Server error: " + (data.error || "Unknown backend failure.") };
     }
-    const w = await res.json();
-    return {
-      city: w.location.name,
-      country: w.location.country,
-      temperature: Math.round(w.current.temp_c),
-      description: w.current.condition.text,
-      humidity: w.current.humidity,
-      windSpeed: Math.round((w.current.wind_kph / 3.6) * 10) / 10,
-      feelsLike: Math.round(w.current.feelslike_c),
-      source: "WeatherAPI"
-    };
-  } catch (e) {
-    console.error("Weather error", e);
-    return null;
+
+    return { text: data.reply || "❌ No response received." };
+
+  } catch (err) {
+    console.error("Frontend connection error:", err);
+    return { text: "❌ Could not reach AI server. Is Render sleeping?" };
   }
 }
 
-async function getUserLocationByPermission() {
-  return new Promise((resolve) => {
-    if (!navigator.geolocation) return resolve(null);
-    navigator.geolocation.getCurrentPosition(
-      async ({ coords: { latitude, longitude } }) => {
-        try {
-          const res = await fetch(
-            `https://api.weatherapi.com/v1/current.json?key=${WEATHER_API_KEY}&q=${latitude},${longitude}&aqi=no`
-          );
-          const data = await res.json();
-          resolve(data.location?.name || null);
-        } catch (e) {
-          console.error("Geo weather error", e);
-          resolve(null);
-        }
-      },
-      () => resolve(null),
-      { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 }
-    );
+/* =====================================================================================
+      FRONTEND UI SYSTEM
+   ===================================================================================== */
+
+function scrollToBottom(container) {
+  if (!container) return;
+  container.scrollTop = container.scrollHeight;
+}
+
+function createMessage(content, sender = "ai", isMarkdown = false) {
+  const chatContainer = document.querySelector("[data-testid='chat-container']");
+  if (!chatContainer) return;
+
+  const msg = document.createElement("div");
+  msg.className = `message ${sender} mb-4`;
+
+  const timestamp = new Date().toLocaleTimeString([], {
+    hour: "2-digit",
+    minute: "2-digit",
   });
-}
 
-// ------------- MAIN APP SETUP -------------
+  const safeText = escapeHtml(content);
 
-document.addEventListener("DOMContentLoaded", () => {
-  // DOM refs
-  const input = document.querySelector('[data-testid="chat-input"]');
-  const sendButton = document.querySelector('[data-testid="send-button"]');
-  const chatContainer = document.querySelector(
-    '[data-testid="chat-container"]'
-  );
-  const micButton = document.querySelector('[data-testid="mic-button"]');
-  const summaryShortButton = document.querySelector(
-    '[data-testid="summary-short"]'
-  );
-  const summaryLongButton = document.querySelector(
-    '[data-testid="summary-long"]'
-  );
-  const locButton = document.querySelector('[data-testid="loc-button"]');
-  const avatarPanelToggle = document.getElementById("avatar-panel-toggle");
-  const quizGeneratorButton = document.getElementById("quiz-generator");
-  const contextSuggestionsContainer = document.getElementById(
-    "context-suggestions"
-  );
-  const tooltip = document.getElementById("tooltip");
-  const themeToggleLoading = document.getElementById("themeToggleLoading");
-  const themeToggleHeader = document.getElementById("themeToggleHeader");
-  const links = document.querySelectorAll(".gradient-text");
-  const chatHistoryLog = document.getElementById("chat-history-log");
-  const voiceToggle = document.getElementById("voice-toggle");
-  const loadingEl = document.getElementById("loading");
-  const loadingTextEl = document.getElementById("loadingText");
-  const loaderFillEl = document.getElementById("loaderFill");
+  const finalContent = isMarkdown
+    ? `<div class="markdown-body">${marked.parse(content)}</div>`
+    : safeText;
 
-  let chatHistory = [];
-  let cachedCity = null;
-  let voiceEnabled = false;
-
-  // ---------- LOADER ANIMATION ----------
-  (function initLoader() {
-    if (!loadingEl) return;
-    const phrases = [
-      "Booting Lumix Core…",
-      "Calibrating neural pathways…",
-      "Styling the UI pixels…",
-      "Connecting to the Gemini engine…",
-      "Almost ready!"
-    ];
-    let idx = 0;
-    loadingTextEl.textContent = phrases[0];
-
-    setInterval(() => {
-      idx = (idx + 1) % phrases.length;
-      loadingTextEl.textContent = phrases[idx];
-    }, 2200);
-
-    let progress = 0;
-    const interval = setInterval(() => {
-      progress += 10 + Math.random() * 15;
-      if (progress >= 100) {
-        progress = 100;
-        clearInterval(interval);
-        setTimeout(hideLoader, 500);
-      }
-      if (loaderFillEl) loaderFillEl.style.width = `${progress}%`;
-    }, 400);
-  })();
-
-  function hideLoader() {
-    if (!loadingEl) return;
-    loadingEl.style.opacity = "0";
-    setTimeout(() => {
-      loadingEl.style.display = "none";
-    }, 900);
-  }
-
-  // ---------- THEME TOGGLE (LIGHT / DARK) ----------
-
-  function updateThemeUI() {
-    const light = document.body.classList.contains("light-mode");
-    document.querySelectorAll(".theme-icon").forEach((icon) => {
-      icon.className = light
-        ? "theme-icon bi bi-moon-fill"
-        : "theme-icon bi bi-brightness-high";
-    });
-    document.querySelectorAll(".theme-label").forEach((label) => {
-      label.textContent = light ? "Dark Mode" : "Light Mode";
-    });
-  }
-
-  function toggleTheme() {
-    document.body.classList.toggle("light-mode");
-    updateThemeUI();
-  }
-
-  if (themeToggleLoading)
-    themeToggleLoading.addEventListener("click", toggleTheme);
-  if (themeToggleHeader)
-    themeToggleHeader.addEventListener("click", toggleTheme);
-  updateThemeUI();
-
-  // ---------- MESSAGE RENDERING ----------
-
-  function scrollToBottom() {
-    if (!chatContainer) return;
-    chatContainer.scrollTop = chatContainer.scrollHeight;
-  }
-
-  function createMessage(content, sender = "ai", isMarkdown = false) {
-    const msg = document.createElement("div");
-    msg.className = `message ${sender} mb-4`;
-
-    const timestamp = new Date().toLocaleTimeString([], {
-      hour: "2-digit",
-      minute: "2-digit"
-    });
-
-    const isLong = content.length > 600;
-    const mdHTML = marked.parse(content);
-    const wrapped = isLong
-      ? `<details class="markdown-body"><summary class="cursor-pointer text-blue-400 underline">Click to expand</summary>${mdHTML}</details>`
-      : `<div class="markdown-body">${mdHTML}</div>`;
-
-    const safeText = escapeHtml(content);
-    const finalContent = isMarkdown ? wrapped : safeText;
-
-    msg.innerHTML = `
+  msg.innerHTML = `
       <div class="font-bold mb-1">${sender === "ai" ? AI_NAME : "You"}</div>
       <div class="message-content">${finalContent}</div>
       <div class="text-xs opacity-60 mt-1">${timestamp}</div>
-    `;
+  `;
 
-    chatContainer.appendChild(msg);
+  chatContainer.appendChild(msg);
+  scrollToBottom(chatContainer);
+}
 
-    if (window.renderMathInElement) {
-      renderMathInElement(msg, {
-        delimiters: [
-          { left: "$$", right: "$$", display: true },
-          { left: "$", right: "$", display: false }
-        ]
-      });
-    }
-    scrollToBottom();
-  }
+function showTyping() {
+  const chatContainer = document.querySelector("[data-testid='chat-container']");
+  const typing = document.createElement("div");
+  typing.className = "message ai";
+  typing.dataset.testid = "typing-indicator";
 
-  function showTyping() {
-    const typing = document.createElement("div");
-    typing.className = "message ai";
-    typing.dataset.testid = "typing-indicator";
-    typing.innerHTML = `
+  typing.innerHTML = `
       <div class="font-bold mb-1">${AI_NAME}</div>
-      <div class="message-content">
-        <div class="typing-indicator">
+      <div class="typing-indicator">
           <div class="animated-cursor"></div> Typing...
-        </div>
       </div>
-    `;
-    chatContainer.appendChild(typing);
-    scrollToBottom();
-  }
+  `;
 
-  function hideTyping() {
-    const indicator = document.querySelector(
-      '[data-testid="typing-indicator"]'
-    );
-    if (indicator) indicator.remove();
-  }
+  chatContainer.appendChild(typing);
+  scrollToBottom(chatContainer);
+}
 
-  // ---------- SIDE PANEL HISTORY ----------
+function hideTyping() {
+  const indicator = document.querySelector("[data-testid='typing-indicator']");
+  if (indicator) indicator.remove();
+}
 
-  function refreshHistoryPanel() {
-    if (!chatHistoryLog) return;
-    const lastItems = chatHistory.slice(-6);
-    if (!lastItems.length) {
-      chatHistoryLog.innerHTML =
-        "<p>Your conversation history will appear here.</p>";
-      return;
-    }
+/* =====================================================================================
+      MAIN CHAT LOGIC
+   ===================================================================================== */
 
-    chatHistoryLog.innerHTML = lastItems
-      .map((m) => {
-        const who = m.role === "user" ? "You" : AI_NAME;
-        const text = escapeHtml(m.parts[0]?.text || "").slice(0, 120);
-        return `<p><strong>${who}:</strong> ${text}${
-          text.length === 120 ? "…" : ""
-        }</p>`;
-      })
-      .join("");
-  }
+document.addEventListener("DOMContentLoaded", () => {
+  const input = document.querySelector("[data-testid='chat-input']");
+  const sendButton = document.querySelector("[data-testid='send-button']");
+  const summaryShortButton = document.querySelector("[data-testid='summary-short']");
+  const summaryLongButton = document.querySelector("[data-testid='summary-long']");
+  const quizButton = document.getElementById("quiz-generator");
 
-  // ---------- VOICE OUTPUT ----------
-
-  voiceToggle?.addEventListener("change", (e) => {
-    voiceEnabled = e.target.checked;
-  });
-
-  function speakText(text) {
-    if (!voiceEnabled) return;
-    if (!("speechSynthesis" in window)) return;
-
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.rate = 1;
-    utterance.pitch = 1;
-    window.speechSynthesis.cancel();
-    window.speechSynthesis.speak(utterance);
-  }
-
-  // ---------- HANDLE USER QUERY ----------
-
-  async function handleUserQuery(query) {
-    let reply = "";
-    const lower = query.toLowerCase();
-    let queryContext = "general";
-
-    // Personality shortcuts
-    if (/who (made|created|developed) you/i.test(lower)) {
-      const replies = [
-        `I was created by ${CREATOR_NAME}, the mind behind this assistant.`,
-        `I was handcrafted by ${CREATOR_NAME} — designer, developer, and all-around genius.`,
-        `Call me your digital sidekick — created by ${CREATOR_NAME} with vision and code.`
-      ];
-      return replies[Math.floor(Math.random() * replies.length)];
-    }
-
-    if (/what('?s| is) your name/i.test(lower)) {
-      return `My name is '${AI_NAME}'.`;
-    }
-
-    if (/who are you/i.test(lower)) {
-      return `I'm your AI assistant, powered by Gemini and crafted by ${CREATOR_NAME}.`;
-    }
-
-    if (/what does your name mean/i.test(lower)) {
-      return `"LumixCore" is the smart center of your assistant—a blend of bright design and clear reasoning. It’s more than a UI; it’s the base, the brain, and the heart of your AI.`;
-    }
-
-    if (
-      /give a (tagline|good tagline) for your (name|name lumixcore)?/i.test(
-        lower
-      )
-    ) {
-      const replies = [
-        "“LumixCore: The brilliance behind every reply.”",
-        "“Powered by clarity. Driven by logic.”",
-        "“LumixCore — where design meets depth.”",
-        `“Your assistant’s soul, styled by ${CREATOR_NAME}.”`
-      ];
-      return replies[Math.floor(Math.random() * replies.length)];
-    }
-
-    // Weather query?
-    const isWeatherQuery =
-      /weather|temperature|forecast|climate|humid|rain|snow|wind|sunny|cloudy/i.test(
-        lower
-      );
-    if (isWeatherQuery) {
-      queryContext = "weather";
-
-      const cityMatch =
-        query.match(
-          /weather.*?(?:in|for|at)\s+([a-zA-Z\s]+?)(?:\s|$|\?|\.)/i
-        ) || query.match(/([a-zA-Z\s]+?)\s+weather/i);
-
-      let city = cityMatch ? cityMatch[1].trim() : null;
-      if (!city) city = await getUserLocationByPermission();
-
-      let defaulted = false;
-      if (!city) {
-        city = "Mumbai";
-        defaulted = true;
-      }
-
-      const weatherData = await getWeatherData(city);
-      if (weatherData && typeof weatherData === "object") {
-        const preface = defaulted
-          ? "📍 Couldn't access your location. Using Mumbai by default.\n\n"
-          : "";
-        reply =
-          `${preface}**Current Weather in ${weatherData.city}, ${weatherData.country}:**\n\n` +
-          `🌡️ **Temperature:** ${weatherData.temperature}°C (feels like ${weatherData.feelsLike}°C)  \n` +
-          `☁️ **Condition:** ${
-            weatherData.description.charAt(0).toUpperCase() +
-            weatherData.description.slice(1)
-          }  \n` +
-          `💧 **Humidity:** ${weatherData.humidity}%  \n` +
-          `💨 **Wind Speed:** ${weatherData.windSpeed} m/s`;
-      } else if (weatherData === "API_KEY_INVALID") {
-        reply = "⚠️ Weather API key is invalid. Please check your credentials.";
-      } else if (weatherData === "NO_API_KEYS") {
-        reply = "⚠️ No weather API key found. Please configure WEATHER_API_KEY.";
-      } else if (weatherData === "CITY_NOT_FOUND") {
-        reply =
-          "🏙️ City not found. Please check the spelling or try a nearby location.";
-      } else {
-        reply = `❌ Unable to fetch weather for "${city}". Try again later.`;
-      }
-
-      updateContextSuggestions(queryContext, reply);
-      return reply;
-    }
-
-    // Coding queries: flag context
-    if (
-      lower.includes("code") ||
-      lower.includes("javascript") ||
-      lower.includes("python")
-    ) {
-      queryContext = "coding";
-    }
-
-    const result = await callGenerativeAPI(
-      query,
-      "You are a helpful assistant."
-    );
-    reply = result.text;
-    updateContextSuggestions(queryContext, reply);
-    return reply;
-  }
-
-  // ---------- CONTEXT SUGGESTIONS ----------
-
-  function updateContextSuggestions(context, reply) {
-    contextSuggestionsContainer.innerHTML = "";
-    let suggestions = [];
-
-    if (context === "weather") {
-      suggestions = [
-        "What should I wear?",
-        "Is it a good day for a walk?",
-        "How does this compare to yesterday?"
-      ];
-    } else if (context === "coding") {
-      suggestions = [
-        "Can you explain this code?",
-        "How can I optimize this?",
-        "Add comments to the code."
-      ];
-    } else if (reply.length > 300) {
-      suggestions = [
-        "Explain this like I'm five. (from our previous conversation)",
-        "Give me 3 key takeaways. (from our previous conversation)",
-        "Translate this to Spanish. (from our previous conversation)"
-      ];
-    }
-
-    suggestions.forEach((text) => {
-      const btn = document.createElement("button");
-      btn.className = "suggestion-btn";
-      btn.textContent = text;
-      btn.onclick = () => {
-        input.value = text;
-        sendMessage();
-      };
-      contextSuggestionsContainer.appendChild(btn);
-    });
-  }
-
-  // ---------- SENDING / SYSTEM QUERIES ----------
-
+  /* ---- Send Message ---- */
   async function sendMessage() {
-    const q = input.value.trim();
-    if (!q) return;
-    createMessage(q, "user");
+    const text = input.value.trim();
+    if (!text) return;
+
+    createMessage(text, "user");
     input.value = "";
-    chatHistory.push({ role: "user", parts: [{ text: q }] });
-    refreshHistoryPanel();
 
     showTyping();
-    sendButton.disabled = true;
 
-    try {
-      const r = await handleUserQuery(q);
-      hideTyping();
-      createMessage(r, "ai", true);
-      chatHistory.push({ role: "model", parts: [{ text: r }] });
-      refreshHistoryPanel();
-      speakText(r);
-    } catch (e) {
-      hideTyping();
-      createMessage(`❌ ${e.message}`, "ai", false);
-    } finally {
-      sendButton.disabled = false;
-    }
+    const result = await callGenerativeAPI(text);
+
+    hideTyping();
+    createMessage(result.text, "ai", true);
   }
 
-  async function sendSystemQuery(query, systemPrompt, userMessage) {
-    createMessage(userMessage || query, "user");
-    showTyping();
-    try {
-      const r = await callGenerativeAPI(query, systemPrompt);
-      hideTyping();
-      createMessage(r.text, "ai", true);
-      chatHistory.push({ role: "user", parts: [{ text: query }] });
-      chatHistory.push({ role: "model", parts: [{ text: r.text }] });
-      refreshHistoryPanel();
-      speakText(r.text);
-    } catch (e) {
-      hideTyping();
-      createMessage(`❌ ${e.message}`, "ai", false);
-    }
-  }
-
-  // ---------- SUMMARIZATION ----------
-
-  async function summarizeConversation(lines = 10) {
-    const last = chatHistory.filter((m) => m.role === "model").pop();
-    if (!last) {
-      createMessage("There's nothing to summarize yet.", "ai", true);
-      return;
-    }
-    const prompt = `Summarize in **${lines} lines** with bullet points and bold key terms:\n\n---\n\n${last.parts[0].text}`;
-    sendSystemQuery(
-      prompt,
-      "You are a summarization expert.",
-      `Summarize the last response in ${lines} lines.`
-    );
-  }
-
-  // ---------- QUIZ GENERATOR ----------
-
-  quizGeneratorButton?.addEventListener("click", () => {
-    const last = chatHistory.filter((m) => m.role === "model").pop();
-    if (!last) {
-      createMessage(
-        "There's no conversation to create a quiz from yet.",
-        "ai",
-        true
-      );
-      return;
-    }
-    const quizQuery = `Based on the following text, create a multiple-choice quiz with 3 questions. Provide the correct answer after the options for each question.\n\n---\n\n${last.parts[0].text}`;
-    sendSystemQuery(
-      quizQuery,
-      "You are a quiz generation expert.",
-      "Create a quiz from our conversation."
-    );
-  });
-
-  // ---------- TOOLTIP SETUP ----------
-
-  document.querySelectorAll(".explain-btn").forEach((btn) => {
-    btn.addEventListener("mouseover", (e) => {
-      tooltip.textContent = btn.dataset.tooltip;
-      tooltip.style.opacity = "1";
-      tooltip.style.left = `${e.clientX + 15}px`;
-      tooltip.style.top = `${e.clientY + 15}px`;
-    });
-    btn.addEventListener("mousemove", (e) => {
-      tooltip.style.left = `${e.clientX + 15}px`;
-      tooltip.style.top = `${e.clientY + 15}px`;
-    });
-    btn.addEventListener("mouseout", () => {
-      tooltip.style.opacity = "0";
-    });
-  });
-
-  // ---------- AVATAR PANEL TOGGLE ----------
-
-  avatarPanelToggle?.addEventListener("click", () => {
-    document.body.classList.toggle("panel-open");
-  });
-
-  // ---------- SUMMARY BUTTONS ----------
-
-  summaryShortButton?.addEventListener("click", () => summarizeConversation(7));
-  summaryLongButton?.addEventListener("click", () => summarizeConversation(12));
-
-  // ---------- INPUT EVENTS ----------
-
+  /* ---- Event Listeners ---- */
   sendButton?.addEventListener("click", sendMessage);
 
   input?.addEventListener("keydown", (e) => {
@@ -653,77 +141,34 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  // ---------- VOICE INPUT ----------
+  /* ---- Summaries ---- */
+  summaryShortButton?.addEventListener("click", () => {
+    sendSummary(7);
+  });
 
-  if ("webkitSpeechRecognition" in window) {
-    const recognition = new webkitSpeechRecognition();
-    recognition.continuous = false;
-    recognition.interimResults = false;
-    recognition.lang = "en-US";
+  summaryLongButton?.addEventListener("click", () => {
+    sendSummary(12);
+  });
 
-    micButton.addEventListener("click", () => {
-      micButton.style.color = "#ef4444";
-      recognition.start();
-    });
-
-    recognition.onresult = ({ results }) => {
-      input.value = results[0][0].transcript;
-      sendMessage();
-    };
-    recognition.onend = () => (micButton.style.color = "white");
-    recognition.onerror = () => {
-      micButton.style.color = "white";
-      createMessage("🎤 Couldn't understand speech.", "ai");
-    };
-  } else {
-    micButton.style.display = "none";
+  async function sendSummary(lines) {
+    showTyping();
+    const result = await callGenerativeAPI(`Summarize in ${lines} lines.`);
+    hideTyping();
+    createMessage(result.text, "ai", true);
   }
 
-  // ---------- LOCATION BUTTON ----------
-
-  locButton?.addEventListener("click", async () => {
-    createMessage("Requesting your location…", "ai", true);
-    const city = await getUserLocationByPermission();
-    if (city) {
-      cachedCity = city;
-      createMessage(`📍 Using your current location: ${city}`, "ai", true);
-    } else {
-      cachedCity = "Mumbai";
-      createMessage(
-        "Couldn't access your location. Defaulting to Mumbai.",
-        "ai",
-        true
-      );
-    }
+  /* ---- Quiz ---- */
+  quizButton?.addEventListener("click", async () => {
+    showTyping();
+    const result = await callGenerativeAPI("Create a 3-question multiple-choice quiz from our chat.");
+    hideTyping();
+    createMessage(result.text, "ai", true);
   });
 
-  // ---------- NAV LINKS WITH SOUND ----------
-
-  links.forEach((link) => {
-    link.addEventListener("click", (e) => {
-      const soundId = link.getAttribute("data-sound-id");
-      const sound = document.getElementById(soundId);
-      if (!sound) return;
-      e.preventDefault();
-      sound.currentTime = 0;
-      sound.play();
-      sound.addEventListener(
-        "ended",
-        function handleEnd() {
-          window.location.href = link.getAttribute("href");
-          sound.removeEventListener("ended", handleEnd);
-        },
-        { once: true }
-      );
-    });
-  });
-
-  // ---------- INITIAL MESSAGE ----------
-
+  /* ---- Welcome Message ---- */
   createMessage(
-    "Hello! I'm your assistant, now with enhanced features — light/dark theme, voice, summaries, quizzes, weather, and more. Ask me anything.",
+    "Hello! I'm your assistant — upgraded, secure, backend-powered, and enhanced with summaries, quizzes, and clean UI. Ask me anything!",
     "ai",
     true
   );
-  scrollToBottom();
 });
