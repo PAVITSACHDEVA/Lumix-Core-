@@ -219,6 +219,10 @@ document.addEventListener("DOMContentLoaded", () => {
   updateThemeUI();
 
   // ---------- MESSAGE RENDERING ----------
+function scrollToBottom() {
+    if (!chatContainer) return;
+    chatContainer.scrollTop = chatContainer.scrollHeight;
+}
 
   function createMessage(content, sender = "ai", isMarkdown = false) {
     const msg = document.createElement("div");
