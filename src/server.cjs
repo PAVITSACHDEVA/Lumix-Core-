@@ -5,13 +5,15 @@ require("dotenv").config();
 const app = express();
 app.use(express.json());
 
-// ✅ ADD THIS EXACT BLOCK
+// ✅ HEALTH CHECK ENDPOINT
 app.get("/health", (req, res) => {
-  res.status(200).json({ status: "ok", service: "Lumix Core Backend" });
+  res.status(200).json({
+    status: "ok",
+    service: "Lumix Core Backend"
+  });
 });
 
-
-// Gemini API endpoint
+// Gemini model
 const GEMINI_MODEL = "models/gemini-2.5-flash";
 
 app.post("/api/gemini", async (req, res) => {
@@ -53,6 +55,6 @@ app.post("/api/gemini", async (req, res) => {
   }
 });
 
-// Start server
+// ✅ START SERVER
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log("Lumix Core backend running on port", PORT));
