@@ -1,10 +1,15 @@
-import express from "express";
-import cors from "cors";
-import fetch from "node-fetch";
+const express = require("express");
+const fetch = require("node-fetch");
+require("dotenv").config();
 
 const app = express();
-app.use(cors());
 app.use(express.json());
+
+// ✅ ADD THIS EXACT BLOCK
+app.get("/health", (req, res) => {
+  res.status(200).json({ status: "ok", service: "Lumix Core Backend" });
+});
+
 
 // Gemini API endpoint
 const GEMINI_MODEL = "models/gemini-2.5-flash";
